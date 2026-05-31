@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import tkinter as tk
 from tkinter import ttk
+from tkinter.scrolledtext import ScrolledText
 
 
 BG_COLOR = "#f4f7fb"
@@ -59,6 +60,9 @@ def apply_app_style(root: tk.Misc) -> ttk.Style:
     style.configure("TEntry", padding=7, fieldbackground="white", bordercolor=BORDER_COLOR, lightcolor=BORDER_COLOR, darkcolor=BORDER_COLOR)
     style.configure("TCombobox", padding=5, fieldbackground="white")
     style.configure("Treeview", rowheight=28)
+    style.configure("TNotebook", background=BG_COLOR, borderwidth=0, tabmargins=(0, 0, 0, 0))
+    style.configure("TNotebook.Tab", padding=(14, 8), background=ACCENT_SOFT, foreground=TEXT_COLOR)
+    style.map("TNotebook.Tab", background=[("selected", CARD_COLOR)], foreground=[("selected", ACCENT_COLOR)])
     return style
 
 
@@ -85,3 +89,30 @@ def set_window_ready(window: tk.Misc, title: str, width: int, height: int, resiz
 def clear_and_fill(entry_widget: tk.Entry, value: str) -> None:
     entry_widget.delete(0, tk.END)
     entry_widget.insert(tk.INSERT, value)
+
+
+def create_scrollable_treeview(
+    parent: tk.Misc,
+    columns: tuple[str, ...],
+    height: int | None = None,
+    selectmode: str = "browse",
+) -> tuple[ttk.Frame, ttk.Treeview]:
+    container = ttk.Frame(parent, style="Card.TFrame")
+    container.grid_columnconfigure(0, weight=1)
+    container.grid_rowconfigure(0, weight=1)
+
+    tree = ttk.Treeview(container, show="headings", columns=columns, selectmode=selectmode, height=height)
+    tree.grid(column=0, row=0, sticky="nsew")
+
+    yscroll = ttk.Scrollbar(container, orient="vertical", command=tree.yview)
+    yscroll.grid(column=1, row=0, sticky="ns")
+    xscroll = ttk.Scrollbar(container, orient="horizontal", command=tree.xview)
+    xscroll.grid(column=0, row=1, sticky="ew")
+    tree.configure(yscrollcommand=yscroll.set, xscrollcommand=xscroll.set)
+    return container, tree
+
+
+def create_readonly_text(parent: tk.Misc, width: int, height: int) -> ScrolledText:
+    text = ScrolledText(parent, width=width, height=height, relief="flat", borderwidth=1)
+    text.configure(background="white", foreground=TEXT_COLOR, insertbackground=TEXT_COLOR)
+    return text

@@ -18,6 +18,7 @@ from openpyxl.styles.borders import Border, Side, BORDER_THIN
 from openpyxl.styles import PatternFill,  colors
 from openpyxl.formatting.rule import ColorScaleRule
 import math
+from .ui import BG_COLOR, configure_form_grid, create_readonly_text, create_scrollable_treeview, set_window_ready
 mpl.rcParams['font.sans-serif'] = ['SimHei']
 plt.rcParams['font.sans-serif']=['SimHei']
 mpl.rcParams['axes.unicode_minus']=False
@@ -25,11 +26,11 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 class ScrollableFrame(ttk.Frame):
     def __init__(self, container, *args, **kwargs):
         super().__init__(container, *args, **kwargs)
-        canvas = tk.Canvas(self)
+        canvas = tk.Canvas(self, background=BG_COLOR, highlightthickness=0)
         scrollbar = ttk.Scrollbar(self, orient="vertical", command=canvas.yview)
         hscrollbar = ttk.Scrollbar(self, orient=tk.HORIZONTAL, command=canvas.xview)
 
-        self.scrollable_frame = ttk.Frame(canvas)
+        self.scrollable_frame = ttk.Frame(canvas, style='App.TFrame')
         self.scrollable_frame.bind(
             "<Configure>",
             lambda e: canvas.configure(
@@ -99,17 +100,10 @@ class scorecard_result_ui():
                  train_target,oot_target,reject_target,
                  train_time_id,oot_time_id,reject_time_id,
                  record_list, model,scorecarddf,variable_list,lasso_df,model_var_type,var_clus,IGN_groupingdata,var_type):
-        # root=self.master
-        self.master.title('评分卡')#标题
+        set_window_ready(self.master, '模型结果', int(self.master.winfo_screenwidth() * 0.9), int(self.master.winfo_screenheight() * 0.84), resizable=True)
+        self.master.configure(bg=BG_COLOR)
         self.screenwidth = self.master.winfo_screenwidth()
         self.screenheight = self.master.winfo_screenheight()
-        width=self.screenwidth*0.85
-        height=self.screenheight*0.75
-        print(width,height)
-        alignstr = '%dx%d+%d+%d' % (width, height, (self.screenwidth -width ) /2, (self.screenheight -height ) /2)
-        self.master.geometry(alignstr)
-
-        self.master.resizable(width = True, height = True)#窗口大小
 
         def closetab():
             try:
@@ -200,9 +194,33 @@ class scorecard_result_ui():
         filemenu.add_command(label='关闭',command = closetab)
         filemenu.add_command(label='输出报告',command = outputreport)
         filemenu.add_command(label='输出sql打分代码', command=outputsql)
+        self.master.config(menu=menubar)
+
+        header = ttk.Frame(self.master, style='App.TFrame', padding=(18, 18, 18, 10))
+        header.pack(fill='x')
+        ttk.Label(header, text='模型结果总览', style='Title.TLabel').grid(column=0, row=0, sticky='w')
+        ttk.Label(header, text='统一查看模型结构、评分卡表现、稳定性和变量分析。', style='Subtitle.TLabel').grid(column=0, row=1, sticky='w', pady=(4, 0))
+
+        summary = ttk.Frame(self.master, style='App.TFrame', padding=(18, 0, 18, 12))
+        summary.pack(fill='x')
+        configure_form_grid(summary, 5)
+        summary_items = [
+            ('模块名称', str(self.node_name)),
+            ('训练样本', f"{len(self.predict_train_data):,}"),
+            ('验证样本', f"{len(self.predict_vaild_data):,}" if predict_vaild_data.empty != True else '未导入'),
+            ('OOT/拒绝', f"{len(self.predict_oot_data):,} / {len(self.predict_reject_data):,}"),
+            ('变量编码', str(self.model_var_type)),
+        ]
+        for idx, (label, value) in enumerate(summary_items):
+            card = ttk.LabelFrame(summary, text=label, style='Card.TLabelframe', padding=(14, 12))
+            card.grid(column=idx, row=0, sticky='nsew', padx=(0, 12 if idx < len(summary_items) - 1 else 0))
+            ttk.Label(card, text=value, style='SectionTitle.TLabel').pack(anchor='w')
+
+        notebook_wrap = ttk.Frame(self.master, style='App.TFrame', padding=(18, 0, 18, 18))
+        notebook_wrap.pack(fill='both', expand=True)
 
 
-        tabcontrol = ttk.Notebook(self.master)
+        tabcontrol = ttk.Notebook(notebook_wrap)
         tab1 = ttk.Frame(tabcontrol)
         tabcontrol.add(tab1, text = '模型信息')
         tab2 = ttk.Frame(tabcontrol)
@@ -215,6 +233,8 @@ class scorecard_result_ui():
         tabcontrol.add(tab5, text = '变量分组')#Frame控件的具体用法
         tab6 = ttk.Frame(tabcontrol)
         tabcontrol.add(tab6, text = '相关性分析')#Frame控件的具体用法
+        for tab in (tab1, tab2, tab3, tab4, tab5, tab6):
+            tab.configure(style='App.TFrame')
         tabcontrol.pack(expand=1, fill="both")
 
         #第一页模型信息   
@@ -228,7 +248,11 @@ class scorecard_result_ui():
 #第一页模型表现
 #   ----------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------
-        process_bar_t=LabelFrame(tab1)
+        tab1.grid_columnconfigure(0, weight=3)
+        tab1.grid_columnconfigure(1, weight=2)
+        tab1.grid_rowconfigure(0, weight=1)
+
+        process_bar_t=ttk.LabelFrame(tab1, text='变量与筛选过程', style='Card.TLabelframe', padding=(12, 12))
         scorecarddf['ave_score'] = scorecarddf.apply(lambda x: float(x['scorecard']) * float(x['pct_f_N_obs'].replace('%', '')) / 100,
                                    axis=1)
         av_df = scorecarddf.groupby('variable_name')['ave_score'].sum().reset_index().rename({'ave_score': 'average'}, axis=1)
@@ -261,9 +285,9 @@ class scorecard_result_ui():
         plt.tight_layout()
 
 
-        imp_var_base = LabelFrame(process_bar_t )
+        imp_var_base = ttk.LabelFrame(process_bar_t, text='变量重要性', style='Card.TLabelframe', padding=(10, 10))
         imp_var_s = ScrollableFrame(imp_var_base)
-        imp_var=LabelFrame(imp_var_s.scrollable_frame, text='变量重要性')
+        imp_var=ttk.Frame(imp_var_s.scrollable_frame, style='Card.TFrame')
         imp_var_s.pack(side=BOTTOM, anchor='nw', fill=tk.BOTH, expand=YES)
         canvasg=FigureCanvasTkAgg(self.imp_gg,imp_var)
         canvasg.get_tk_widget().pack( expand=1)
@@ -271,27 +295,33 @@ class scorecard_result_ui():
         imp_var.pack(side=TOP, fill='both',expand=1, anchor='ne')
         imp_var_base.pack(side=TOP, fill='both',expand=1, anchor='ne')
 
-        process_bar=LabelFrame(process_bar_t,text='变量筛选过程')
-        textPad1 = ScrolledText(process_bar,width =85,height =60)
+        process_bar=ttk.LabelFrame(process_bar_t, text='变量筛选过程', style='Card.TLabelframe', padding=(10, 10))
+        textPad1 = create_readonly_text(process_bar, width=85, height=24)
         textPad1.insert(tkinter.constants.END, chars = processp(record_list) )
+        textPad1.configure(state='disabled')
         textPad1.pack(side=tk.TOP,fill='both',expand=YES)
         process_bar.pack(side=TOP, fill='both',expand=NO, anchor='ne')
-        process_bar_t.pack(side=RIGHT, fill='both',expand=YES, anchor='ne')
+        process_bar_t.grid(column=1, row=0, sticky='nsew', padx=(6, 12), pady=12)
         var_list=max([len(x) for x in scorecarddf["variable_name"]])
-        final=LabelFrame(tab1,text='最终模型')
-        textPad = ScrolledText(final,width =var_list+80,height =30)
+        left_panel = ttk.Frame(tab1, style='App.TFrame')
+        left_panel.grid(column=0, row=0, sticky='nsew', padx=(12, 6), pady=12)
+        left_panel.grid_columnconfigure(0, weight=1)
+        left_panel.grid_rowconfigure(1, weight=1)
+
+        final=ttk.LabelFrame(left_panel, text='最终模型', style='Card.TLabelframe', padding=(12, 12))
+        textPad = create_readonly_text(final, width=min(var_list + 80, 140), height=18)
         textPad.insert(tkinter.constants.END, chars = str(model.summary()) )
+        textPad.configure(state='disabled')
         textPad.pack(fill='x',expand=NO)
-        final.pack(side=TOP, anchor='w',fill='x',expand=1,  padx=5, pady=5)
+        final.grid(column=0, row=0, sticky='ew', pady=(0, 12))
 
 
 
-        final2=LabelFrame(tab1,text='评分卡')
+        final2=ttk.LabelFrame(left_panel, text='评分卡明细', style='Card.TLabelframe', padding=(12, 12))
         columns = ('variable_name', 'f_group', 'label', 'f_Bad_rate', 'pct_f_N_obs',
                    'woe',
                'coff', 'scorecard')
-        tree = ttk.Treeview(final2, show = "headings", 
-                            columns = columns, selectmode = tk.BROWSE,height=70)
+        tree_wrap, tree = create_scrollable_treeview(final2, columns=columns, height=18)
         tree.column("variable_name", anchor = "w",minwidth=0,width=150, stretch=NO)
         tree.column( 'f_group', anchor = "center",minwidth=0,width=50, stretch=NO)
         tree.column('label', anchor = "w",minwidth=0,width=200, stretch=NO)
@@ -309,8 +339,8 @@ class scorecard_result_ui():
         tree.heading('coff', text = "系数")
         tree.heading('scorecard', text = "分数")
         scorecarddf.apply(lambda x: tree.insert('',1, values = (x['variable_name'], x['f_group'], x['label'], x['f_Bad_rate'], x['pct_f_N_obs'],x['woe'],x['coff'], x['scorecard'])),axis=1)
-        tree.pack(side=TOP,fill=tk.BOTH,expand=NO)
-        final2.pack(side=TOP, anchor='w',fill='both',expand=NO,  padx=5, pady=5)
+        tree_wrap.pack(fill='both', expand=True)
+        final2.grid(column=0, row=1, sticky='nsew')
 
         preds_t=self.predict_train_data[self.train_target]
         labels_t=self.predict_train_data['SCORECARD_LR_p_1']
@@ -351,9 +381,9 @@ class scorecard_result_ui():
 # ----------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------
  #下1       -----------------------------------------------------------------------------
-        middle_frame=Frame(tab2,width=self.screenwidth*0.72, height=self.screenheight*0.27)
+        middle_frame=ttk.Frame(tab2, style='App.TFrame', width=self.screenwidth*0.72, height=self.screenheight*0.27)
         middle_frame.pack_propagate(0)
-        ks=LabelFrame(middle_frame,text='KS')
+        ks=ttk.LabelFrame(middle_frame, text='KS', style='Card.TLabelframe', padding=(10, 10))
             
         self.ks_mp=self.PlotKS(preds_t=preds_t, labels_t=labels_t, n=100, asc=0,preds_v=preds_v, labels_v=labels_v,
                preds_o=preds_o, labels_o=labels_o,preds_r=preds_r, labels_r=labels_r,
@@ -363,13 +393,12 @@ class scorecard_result_ui():
         canvasg._tkcanvas.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
         ks.pack(side=LEFT, anchor='nw',fill=tk.BOTH,expand=YES,  padx=5, pady=5)
     
-        cali_data=LabelFrame(middle_frame,text='分数校准数据')
+        cali_data=ttk.LabelFrame(middle_frame, text='分数校准数据', style='Card.TLabelframe', padding=(10, 10))
         if flag_v==True:
             columns = ('s_group','SCORECARD_LR_p_1',train_target,'count','SCORECARD_LR_p_1_v',train_target+'_v','count_v')
         else:
             columns = ('s_group','SCORECARD_LR_p_1',train_target,'count')
-        tree = ttk.Treeview(cali_data, show = "headings", 
-                            columns = columns, selectmode = tk.BROWSE)
+        tree_wrap, tree = create_scrollable_treeview(cali_data, columns=columns)
         tree.column('s_group', anchor = "center",minwidth=0,width=80, stretch=NO)
         tree.column( 'SCORECARD_LR_p_1', anchor = "center",minwidth=0,width=60, stretch=NO)
         tree.column(train_target, anchor = "center",minwidth=0,width=60, stretch=NO)
@@ -399,10 +428,10 @@ class scorecard_result_ui():
             self.cailbra_data.apply(lambda x: tree.insert('',0, values = (x['s_group'], x['SCORECARD_LR_p_1'], x[train_target], x['count'],x['SCORECARD_LR_p_1_v'], x[train_target+'_v'], x['count_v'])),axis=1)
         else:
             self.cailbra_data.apply(lambda x: tree.insert('',0, values = (x['s_group'], x['SCORECARD_LR_p_1'], x[train_target], x['count'])),axis=1)
-        tree.pack(fill='both',expand=YES)
+        tree_wrap.pack(fill='both',expand=YES)
         cali_data.pack(side=LEFT, anchor='nw',fill='y',expand=NO,  padx=5, pady=5)
 
-        pltcali=LabelFrame(middle_frame,text='分数校准')
+        pltcali=ttk.LabelFrame(middle_frame, text='分数校准', style='Card.TLabelframe', padding=(10, 10))
         # m = cali(df,'SCORECARD_LR_p_1' ,model1.target_train)
         self.cail_m=cail_data_re[1]
         canvasg=FigureCanvasTkAgg(self.cail_m,pltcali)
@@ -414,9 +443,9 @@ class scorecard_result_ui():
         middle_frame.pack(side=TOP, anchor='w',fill='x',expand=YES,  padx=5, pady=5)
 
  #下2       -----------------------------------------------------------------------------
-        right_frame=Frame(tab2,width=self.screenwidth*0.72, height=self.screenheight*0.22)
+        right_frame=ttk.Frame(tab2, style='App.TFrame', width=self.screenwidth*0.72, height=self.screenheight*0.22)
         right_frame.pack_propagate(0)
-        pltauc=LabelFrame(right_frame,text='AUC')
+        pltauc=ttk.LabelFrame(right_frame, text='AUC', style='Card.TLabelframe', padding=(10, 10))
 
 
         self.auc_m=self.AUC(preds_t=preds_t, labels_t=labels_t, n=100, asc=0,preds_v=preds_v, labels_v=labels_v,
@@ -429,12 +458,12 @@ class scorecard_result_ui():
         canvasg._tkcanvas.pack(side=tk.TOP, fill=tk.BOTH, expand=1)
         pltauc.pack(side=LEFT, anchor='nw',fill=tk.BOTH,expand=YES,  padx=5, pady=5)
     
-        lift_da=LabelFrame(right_frame,text='Lift数据')
+        lift_da=ttk.LabelFrame(right_frame, text='Lift数据', style='Card.TLabelframe', padding=(10, 10))
         if flag_v==True:
             columns = ('total_pct','lift','total_pct_v','lift_v')
         else:
             columns = ('total_pct','lift')
-        tree = ttk.Treeview(lift_da, show = "headings", columns = columns, selectmode = tk.BROWSE)
+        tree_wrap, tree = create_scrollable_treeview(lift_da, columns=columns)
         tree.column('total_pct', anchor = "center",minwidth=0,width=80, stretch=NO)
         tree.column( 'lift', anchor = "center",minwidth=0,width=80, stretch=NO)
         if flag_v==True:
@@ -465,12 +494,12 @@ class scorecard_result_ui():
         else:
             self.lift_data.apply(lambda x: tree.insert('',0, values = (x['total_pct'], x['lift'])),axis=1)
             
-        tree.pack(fill='both',expand=YES)
+        tree_wrap.pack(fill='both',expand=YES)
         lift_da.pack(side=LEFT, anchor='nw',fill='y',expand=NO,  padx=5, pady=5)
 
 
 
-        pltlift=LabelFrame(right_frame,text='Lift')
+        pltlift=ttk.LabelFrame(right_frame, text='Lift', style='Card.TLabelframe', padding=(10, 10))
 
         try:
             plt.close()
@@ -499,9 +528,9 @@ class scorecard_result_ui():
 
         
  #下3       -----------------------------------------------------------------------------
-        bottom_frame=Frame(tab2,width=self.screenwidth*0.72, height=self.screenheight*0.22)
+        bottom_frame=ttk.Frame(tab2, style='App.TFrame', width=self.screenwidth*0.72, height=self.screenheight*0.22)
         bottom_frame.pack_propagate(0)
-        pltdistri=LabelFrame(bottom_frame,text='分数分布')
+        pltdistri=ttk.LabelFrame(bottom_frame, text='分数分布', style='Card.TLabelframe', padding=(10, 10))
         self.dis_train_m = self.plotdis(predict_train_data,train_target,'SCORECARD_LR_p_1')
         canvasg=FigureCanvasTkAgg(self.dis_train_m,pltdistri)
         canvasg.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
@@ -509,7 +538,7 @@ class scorecard_result_ui():
         pltdistri.pack(side=LEFT, anchor='nw',fill='y',expand=NO,  padx=5, pady=5)
 
     
-        disgb=LabelFrame(bottom_frame,text='分数区间分布')
+        disgb=ttk.LabelFrame(bottom_frame, text='分数区间分布', style='Card.TLabelframe', padding=(10, 10))
         
 
         if self.predict_oot_data.empty==True:
@@ -548,14 +577,14 @@ class scorecard_result_ui():
 #------------------------------------------------------------------------------------------------------
 
         if (train_time_id!=None ) or (reject_time_id!=None and predict_reject_data.empty==False) or( oot_time_id!=None and predict_oot_data.empty==False) :
-            left_frame_3=Frame(tab3,width=self.screenwidth*0.32, height=self.screenheight*0.27)
+            left_frame_3=ttk.Frame(tab3, style='App.TFrame', width=self.screenwidth*0.32, height=self.screenheight*0.27)
             self.left_frame_3_width=self.screenwidth*0.32
             self.model_ginitime=self.calculateginitime('SCORECARD_LR_p_1', predict_train_data, train_time_id, train_target, flag_v,predict_vaild_data,
                                     predict_oot_data, oot_target, oot_time_id, predict_reject_data, reject_time_id,reject_target)
 
     #-------------------------------------------------------------------------------------------
             if self.model_ginitime.empty == False:
-                steab_data=LabelFrame(left_frame_3,text='模型表现稳定性')
+                steab_data=ttk.LabelFrame(left_frame_3, text='模型表现稳定性', style='Card.TLabelframe', padding=(10, 10))
                 col=[]
                 if train_time_id != None:
                     col=['timeid','auc','count','bad_rate']
@@ -566,8 +595,7 @@ class scorecard_result_ui():
                 if self.predict_reject_data.empty==False and self.reject_target!=None and self.reject_time_id!=None :
                     col=col+['auc_reject','count_reject','bad_rate_reject']
                 columns = col
-                tree = ttk.Treeview(steab_data, show = "headings",
-                                    columns = columns, selectmode = tk.BROWSE)
+                tree_wrap, tree = create_scrollable_treeview(steab_data, columns=columns)
                 tree.column('timeid', anchor = "center",minwidth=0,width=80, stretch=NO)
                 if train_time_id != None:
                     tree.column( 'auc', anchor = "center",minwidth=0,width=60, stretch=NO)
@@ -614,10 +642,10 @@ class scorecard_result_ui():
                         re=re+(x['auc_reject'],x['count_reject'],x['bad_rate_reject'],)
                     return re
                 self.model_ginitime.apply(lambda x: tree.insert('',0, values = inter(x)),axis=1)
-                tree.pack(fill='both',expand=YES)
+                tree_wrap.pack(fill='both',expand=YES)
                 steab_data.pack(side=TOP, anchor='nw',fill='y',expand=NO,  padx=5, pady=5)
         #-------------------------------------------------------------------------------------------
-                steab_fig=LabelFrame(left_frame_3,text='模型表现稳定性')
+                steab_fig=ttk.LabelFrame(left_frame_3, text='模型表现稳定性', style='Card.TLabelframe', padding=(10, 10))
                 try:
                     plt.close()
                 except:
@@ -673,7 +701,7 @@ class scorecard_result_ui():
                 canvasg.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=0)
                 canvasg._tkcanvas.pack(side=tk.TOP, fill=tk.BOTH, expand=0)
                 steab_fig.pack(side=TOP, anchor='nw',fill=tk.BOTH,expand=0,  padx=5, pady=5)
-            steab_dis = LabelFrame(left_frame_3, text='分布稳定性')
+            steab_dis = ttk.LabelFrame(left_frame_3, text='分布稳定性', style='Card.TLabelframe', padding=(10, 10))
             if self.predict_oot_data.empty == True:
                 oot_data = False
             else:
@@ -697,7 +725,7 @@ class scorecard_result_ui():
 
     #第三页右边----------------------------------------------------------------------------------------------------
 
-            right_frame_b3=Frame(tab3,width=self.screenwidth*0.5, height=self.screenheight*0.27)
+            right_frame_b3=ttk.Frame(tab3, style='App.TFrame', width=self.screenwidth*0.5, height=self.screenheight*0.27)
             self.right_frame_b3_width=self.screenwidth*0.4
 
             def plot_variable_sta(event):
@@ -732,7 +760,7 @@ class scorecard_result_ui():
                                                                      predict_vaild_data,
                                                                      predict_oot_data, oot_target, oot_time_id,
                                                                      predict_reject_data, reject_time_id, reject_target)
-                    var_in_frame=LabelFrame(self.s_frame.scrollable_frame,text=var_in)
+                    var_in_frame=ttk.LabelFrame(self.s_frame.scrollable_frame, text=var_in, style='Card.TLabelframe', padding=(10, 10))
                     col=['timeid']
                     if train_time_id != None:
                         col=col+['auc','count','bad_rate']
@@ -743,8 +771,7 @@ class scorecard_result_ui():
                     if self.predict_reject_data.empty==False and self.reject_target!=None and self.reject_time_id!=None :
                         col=col+['auc_reject','count_reject','bad_rate_reject']
                     columns = col
-                    tree = ttk.Treeview(var_in_frame, show = "headings",
-                                        columns = columns, selectmode = tk.BROWSE)
+                    tree_wrap, tree = create_scrollable_treeview(var_in_frame, columns=columns)
                     tree.column('timeid', anchor = "center",minwidth=0,width=80, stretch=NO)
                     if train_time_id != None:
                         tree.column( 'auc', anchor = "center",minwidth=0,width=60, stretch=NO)
@@ -791,7 +818,7 @@ class scorecard_result_ui():
                             re=re+(x['auc_reject'],x['count_reject'],x['bad_rate_reject'],)
                         return re
                     model_ginitime.apply(lambda x: tree.insert('',0, values = inter(x)),axis=1)
-                    tree.pack(fill='both',expand=YES,  padx=5, pady=5)
+                    tree_wrap.pack(fill='both',expand=YES,  padx=5, pady=5)
     #报告----------------------------------------------------------------------------------------
     #--------------------------------------------------------------------------------------
                     if list(scorecarddf[scorecarddf['variable_name']==var_in]['var_type'])[0]=='add':
@@ -801,8 +828,7 @@ class scorecard_result_ui():
                     else:
                         report=self.f_group_report[self.f_group_report['variable_name']==var_in]
                     columns=[ 'f_group','label','iv', 'f_Bad_rate', 'f_N_obs','miss_rate']
-                    tree_rep = ttk.Treeview(var_in_frame, show = "headings",
-                                        columns = columns, selectmode = tk.BROWSE)
+                    tree_rep_wrap, tree_rep = create_scrollable_treeview(var_in_frame, columns=columns)
                     tree_rep.column( 'f_group', anchor = "center",minwidth=0,width=60, stretch=NO)
                     tree_rep.column('label', anchor = "center",minwidth=0,width=280, stretch=NO)
                     tree_rep.column('iv', anchor = "center",minwidth=0,width=60, stretch=NO)
@@ -816,7 +842,7 @@ class scorecard_result_ui():
                     tree_rep.heading('f_N_obs', text = "组坏账数")
                     tree_rep.heading('miss_rate', text = "缺失率")
                     report.apply(lambda x: tree_rep.insert('',0, values =(x['f_group'],x['label'],x['iv'], x['f_Bad_rate'], x['f_N_obs'],x['miss_rate'])),axis=1)
-                    tree_rep.pack(fill='both',expand=YES,  padx=5, pady=5)
+                    tree_rep_wrap.pack(fill='both',expand=YES,  padx=5, pady=5)
 
             #woe------group--------
                     ccc=self.groupplot_datainit(modify_var=var_in)
@@ -832,7 +858,7 @@ class scorecard_result_ui():
                 var_list.remove('const')
             except:
                 pass
-            toplbel=LabelFrame(right_frame_b3)
+            toplbel=ttk.LabelFrame(right_frame_b3, text='变量查看', style='Card.TLabelframe', padding=(10, 8))
             self.comboxlist_variable_use = ttk.Combobox(toplbel, width=45)
             self.comboxlist_variable_use["value"] = var_list
     #         self.comboxlist_variable_use.current(0)
@@ -846,9 +872,9 @@ class scorecard_result_ui():
  #第四页-------------------------------------------------------------------------
 #-----------------------------------------------------------------------------------
         if lasso_df.empty==False:
-            lasso_bar_b=LabelFrame(tab4)
+            lasso_bar_b=ttk.Frame(tab4, style='App.TFrame')
             self.s_frame_lasso = ScrollableFrame(lasso_bar_b)
-            lasso_bar=LabelFrame(self.s_frame_lasso.scrollable_frame,text='LASSO')
+            lasso_bar=ttk.LabelFrame(self.s_frame_lasso.scrollable_frame, text='LASSO 路径分析', style='Card.TLabelframe', padding=(12, 12))
             woe_list=['woe_'+ x for x in variable_list]
             summ=lasso_df.sort_values(by='C')
             summ=summ.reset_index().drop(columns='index')
@@ -890,9 +916,8 @@ class scorecard_result_ui():
                 columns=[ 'variable_name','step','llr', 'aic', 'bic','llr_v','aic_v','bic_v']
             else:
                 columns=[ 'variable_name','step','llr', 'aic', 'bic']
-            lasso_df=LabelFrame(lasso_bar,text='LASSO 数据')
-            tree_lasso = ttk.Treeview(lasso_df, show = "headings",
-                                columns = columns, selectmode = tk.BROWSE)
+            lasso_df=ttk.LabelFrame(lasso_bar, text='LASSO 数据', style='Card.TLabelframe', padding=(10, 10))
+            tree_lasso_wrap, tree_lasso = create_scrollable_treeview(lasso_df, columns=columns)
             tree_lasso.column( 'variable_name', anchor = "center",minwidth=0,width=320, stretch=NO)
             tree_lasso.column('step', anchor = "center",minwidth=0,width=50, stretch=NO)
             tree_lasso.column('llr', anchor = "center",minwidth=0,width=50, stretch=NO)
@@ -919,7 +944,7 @@ class scorecard_result_ui():
             else:
                 step_show_df.apply(lambda x: tree_lasso.insert('',0, values =(x['variable_name'],int(x['step']),int(x['llr']), int(x['aic']),
                                                                               int(x['bic']))),axis=1)
-            tree_lasso.pack(side=TOP,fill=tk.BOTH,expand=YES,  padx=5, pady=5)
+            tree_lasso_wrap.pack(side=TOP,fill=tk.BOTH,expand=YES,  padx=5, pady=5)
             try:
                 plt.close()
             except:
@@ -975,7 +1000,7 @@ class scorecard_result_ui():
             plt.legend(bbox_to_anchor=(0, -0.1), loc="upper left", prop = {'size':6},
                      borderaxespad=0, ncol=3)
             plt.tight_layout()
-            lasso_pig=LabelFrame(lasso_bar,text='LASSO 图表')
+            lasso_pig=ttk.LabelFrame(lasso_bar, text='LASSO 图表', style='Card.TLabelframe', padding=(10, 10))
             canvasg=FigureCanvasTkAgg(self.lasso_fig,lasso_pig)
             canvasg.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
             canvasg._tkcanvas.pack(side=TOP, fill=tk.BOTH, expand=1)
@@ -989,20 +1014,21 @@ class scorecard_result_ui():
 #-----------------------------------------------------------------------------------       
         
         
-        clus_bar=LabelFrame(tab5,text='变量分组')
+        clus_bar=ttk.LabelFrame(tab5, text='变量分组', style='Card.TLabelframe', padding=(12, 12))
         # variable_list=['woe_'+ x for x in variable_list]
         # df=predict_train_data[variable_list]
         # clus = VarClus()
         # clus.decompose(dataframe=df)
         # model_list=['woe_'+ x for x in list(set(scorecarddf['variable_name']))]
         # h=clus.print_cluster_structure(model_variable=model_list, h_space=5)
-        textPad2 = ScrolledText(clus_bar,width =85,height =100)
+        textPad2 = create_readonly_text(clus_bar, width=85, height=40)
         textPad2.insert(tkinter.constants.END, chars = var_clus )
+        textPad2.configure(state='disabled')
         textPad2.pack(fill='both',expand=YES)
         clus_bar.pack(side=TOP, fill='both',expand=NO, anchor='ne')
         # 第六页-------------------------------------------------------------------------
         # -----------------------------------------------------------------------------------
-        corr_tab = LabelFrame(tab6)
+        corr_tab = ttk.Frame(tab6, style='App.TFrame')
         mm = self.predict_train_data
         mm1 = self.scorecarddf
         variable = list(mm1['variable_name'].unique())
@@ -1033,9 +1059,9 @@ class scorecard_result_ui():
         plt.tick_params(labelsize=24)
 
 
-        corr_tab_base = LabelFrame(corr_tab )
+        corr_tab_base = ttk.LabelFrame(corr_tab, text='相关性热力图', style='Card.TLabelframe', padding=(12, 12))
         corr_tab_s = ScrollableFrame(corr_tab_base)
-        corr_tab_g=LabelFrame(corr_tab_s.scrollable_frame,text='相关性分析')
+        corr_tab_g=ttk.Frame(corr_tab_s.scrollable_frame, style='Card.TFrame')
         corr_tab_s.pack(side=BOTTOM, anchor='nw', fill=tk.BOTH, expand=YES)
         canvasg=FigureCanvasTkAgg(g,corr_tab_g)
         canvasg.get_tk_widget().pack( expand=1)
