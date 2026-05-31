@@ -69,64 +69,41 @@ class inputdata():
 
     def data_detail(self, event):
         tt = Toplevel(self.master)
-        tt.title(self.data_name)
-        width = 500
-        height = 200
-        screenwidth = tt.winfo_screenwidth()
-        screenheight = tt.winfo_screenheight()
-        alignstr = '%dx%d+%d+%d' % (width, height, (screenwidth - width) / 2, (screenheight - height) / 2)
-        tt.geometry(alignstr)
+        set_window_ready(tt, self.data_name, 640, 360)
+        card = ttk.LabelFrame(tt, text='数据集信息', style='Card.TLabelframe', padding=(18, 16))
+        card.grid(column=0, row=0, sticky='nsew', padx=20, pady=20)
+        configure_form_grid(card, 2)
 
+        ttk.Label(card, text="数据集路径（CSV）", style='Field.TLabel').grid(column=0, row=0, sticky=(W))
+        ttk.Label(card, text=self.data_path, style='Hint.TLabel').grid(column=1, row=0, sticky=(W))
 
-        L1 = Label(tt, width=20, text="数据集路径（CSV):")
-        L1.grid(column=0, row=0, sticky=(W))
-        L2 = Label(tt, text=self.data_path)
-        L2.grid(column=1, row=0, sticky=(W))
+        ttk.Label(card, text="数据集名称", style='Field.TLabel').grid(column=0, row=1, sticky=(W))
+        ttk.Label(card, text=self.data_name, style='Hint.TLabel').grid(column=1, row=1, sticky=(W))
 
-        L3 = Label(tt, width=20, text="数据集名称:")
-        L3.grid(column=0, row=1, sticky=(W))
-        L4 = Label(tt, text=self.data_name)
-        L4.grid(column=1, row=1, sticky=(W))
+        ttk.Label(card, text="数据集编码", style='Field.TLabel').grid(column=0, row=2, sticky=(W))
+        ttk.Label(card, text=self.data_coding, style='Hint.TLabel').grid(column=1, row=2, sticky=(W))
 
-        L5 = Label(tt, width=20, text="数据集编码:")
-        L5.grid(column=0, row=2, sticky=(W))
-        L6 = Label(tt, text=self.data_coding)
-        L6.grid(column=1, row=2, sticky=(W))
+        ttk.Label(card, text="数据集角色", style='Field.TLabel').grid(column=0, row=3, sticky=(W))
+        ttk.Label(card, text=self.data_role, style='Hint.TLabel').grid(column=1, row=3, sticky=(W))
 
-        L7 = Label(tt, width=20, text="数据集角色:")
-        L7.grid(column=0, row=3, sticky=(W))
-        L8 = Label(tt, text=self.data_role)
-        L8.grid(column=1, row=3, sticky=(W))
+        ttk.Label(card, text="数据集样本数", style='Field.TLabel').grid(column=0, row=4, sticky=(W))
+        ttk.Label(card, text=len(self.data_set), style='Hint.TLabel').grid(column=1, row=4, sticky=(W))
 
-        L9 = Label(tt, width=20, text="数据集样本数:")
-        L9.grid(column=0, row=4, sticky=(W))
-        L10 = Label(tt, text=len(self.data_set))
-        L10.grid(column=1, row=4, sticky=(W))
+        ttk.Label(card, text="数据集列数", style='Field.TLabel').grid(column=0, row=5, sticky=(W))
+        ttk.Label(card, text=len(list(self.data_set.columns)), style='Hint.TLabel').grid(column=1, row=5, sticky=(W))
 
-        L11 = Label(tt, width=20, text="数据集列数:")
-        L11.grid(column=0, row=5, sticky=(W))
-        L12 = Label(tt, text=len(list(self.data_set.columns)))
-        L12.grid(column=1, row=5, sticky=(W))
+        ttk.Label(card, text="数值型自变量", style='Field.TLabel').grid(column=0, row=6, sticky=(W))
+        ttk.Label(card, text=len(self.data_variable_setting[(self.data_variable_setting['变量角色'] == '自变量') & (
+                self.data_variable_setting['变量类型'] == '数值型')]), style='Hint.TLabel').grid(column=1, row=6, sticky=(W))
 
-        L12 = Label(tt, width=20, text="数值型自变量:")
-        L12.grid(column=0, row=6, sticky=(W))
-        L13 = Label(tt, text=len(self.data_variable_setting[(self.data_variable_setting['变量角色'] == '自变量') & (
-                self.data_variable_setting['变量类型'] == '数值型')]))
-        L13.grid(column=1, row=6, sticky=(W))
-
-        L14 = Label(tt, width=20, text="字符型自变量:")
-        L14.grid(column=0, row=7, sticky=(W))
-        L15 = Label(tt, text=len(self.data_variable_setting[(self.data_variable_setting['变量角色'] == '自变量') & (
-                self.data_variable_setting['变量类型'] == '字符型')]))
-        L15.grid(column=1, row=7, sticky=(W))
+        ttk.Label(card, text="字符型自变量", style='Field.TLabel').grid(column=0, row=7, sticky=(W))
+        ttk.Label(card, text=len(self.data_variable_setting[(self.data_variable_setting['变量角色'] == '自变量') & (
+                self.data_variable_setting['变量类型'] == '字符型')]), style='Hint.TLabel').grid(column=1, row=7, sticky=(W))
 
         if len(self.data_variable_setting[self.data_variable_setting['变量角色'] == '目标']) == 1:
             target = list(self.data_variable_setting[self.data_variable_setting['变量角色'] == '目标']['变量名称'])[0]
-
-            L11 = Label(tt, width=20, text="坏样本数:")
-            L11.grid(column=0, row=8, sticky=(W))
-            L12 = Label(tt, text=self.data_set[target].sum())
-            L12.grid(column=1, row=8, sticky=(W))
+            ttk.Label(card, text="坏样本数", style='Field.TLabel').grid(column=0, row=8, sticky=(W))
+            ttk.Label(card, text=self.data_set[target].sum(), style='Hint.TLabel').grid(column=1, row=8, sticky=(W))
 
     def newdatainput(self):
         set_window_ready(self.master, '导入数据集', 700, 340)
@@ -182,9 +159,9 @@ class inputdata():
         de = dd.T
         de['变量名称'] = de.index
         df = de
-        self.tt = Toplevel()
-        self.tt.title(self.data_name)
-        f = Frame(self.tt)
+        self.tt = Toplevel(self.master)
+        set_window_ready(self.tt, f'{self.data_name} - 数据探索', 1100, 720, resizable=True)
+        f = ttk.Frame(self.tt, padding=(12, 12))
 
         f.grid(column=0, row=1, rowspan=len(df), sticky=(E, W))
         screen_width = f.winfo_screenwidth() * 0.8
@@ -196,9 +173,9 @@ class inputdata():
         data_len = min(200, len(self.data_set))
         de = self.data_set[0:data_len]
         df = de
-        self.tt1 = Toplevel()
-        self.tt1.title(self.data_name)
-        f = Frame(self.tt1)
+        self.tt1 = Toplevel(self.master)
+        set_window_ready(self.tt1, f'{self.data_name} - 数据预览', 1100, 720, resizable=True)
+        f = ttk.Frame(self.tt1, padding=(12, 12))
         f.grid(column=0, row=1, rowspan=len(df), sticky=(E, W))
         screen_width = f.winfo_screenwidth() * 0.8
         screen_height = f.winfo_screenheight() * 0.8
@@ -210,17 +187,17 @@ class inputdata():
             tk.messagebox.showwarning('错误', "错误：请先保存您的设置")
         elif self.data_variable_setting.equals(self.node_setting['data_variable_setting']) == False:
             self.close_tip = Toplevel(self.data_variable_set_ui)
-            screenwidth = self.data_variable_set_ui.winfo_screenwidth()
-            screenheight = self.data_variable_set_ui.winfo_screenheight()
-            self.close_tip.geometry('%dx%d+%d+%d' % (400, 100, (screenwidth - 150) / 2, (screenheight - 100) / 2))
-            L2 = Label(self.close_tip, text="参数设置以更改，是否保存更改")
-            L2.grid(column=0, row=0, columnspan=3)
-            test_button4 = ttk.Button(self.close_tip, text='保存')
-            test_button4.grid(column=0, row=1, sticky=(W))
+            set_window_ready(self.close_tip, '保存更改', 420, 140)
+            card = ttk.LabelFrame(self.close_tip, text='提示', style='Card.TLabelframe', padding=(16, 14))
+            card.grid(column=0, row=0, sticky='nsew', padx=16, pady=16)
+            L2 = ttk.Label(card, text="参数设置已更改，关闭前是否保存？", style='Field.TLabel')
+            L2.grid(column=0, row=0, columnspan=3, sticky=(W))
+            test_button4 = ttk.Button(card, text='保存', style='Accent.TButton')
+            test_button4.grid(column=0, row=1, sticky=(W), pady=(14, 0))
             test_button4.bind("<Button-1>", self.colse_save)
 
-            test_button4 = ttk.Button(self.close_tip, text='不保存(关闭)')
-            test_button4.grid(column=2, row=1, sticky=(W))
+            test_button4 = ttk.Button(card, text='不保存并关闭', style='Secondary.TButton')
+            test_button4.grid(column=2, row=1, sticky=(W), pady=(14, 0))
             test_button4.bind("<Button-1>", self.final_close)
         #         if self.save=='N'and self.update=='Y':
         else:

@@ -23,6 +23,7 @@ import os
 import numpy as np
 import random
 from .var_clus import VarClus
+from .ui import configure_form_grid, set_window_ready
 
 
 class model():
@@ -318,43 +319,43 @@ class model():
 
     def Start_UI(self):
         self.start_window_base = self.master
-        width = self.master.winfo_screenwidth() * 0.2
-        height = self.master.winfo_screenheight() * 0.7
-        screenwidth = self.master.winfo_screenwidth()
-        screenheight = self.master.winfo_screenheight()
-        self.start_window_base.geometry(
-            '%dx%d+%d+%d' % (width, height, (screenwidth - width) / 2, (screenheight - height) / 2))
-        self.start_window_base.title('评分卡模型')
+        set_window_ready(self.start_window_base, '评分卡模型', 860, 760, resizable=True)
 
     def adjustsetting(self):
+        self.start_window_base.configure(bg='#f4f7fb')
+        self.start_window_base.grid_columnconfigure(0, weight=1)
+        ttk.Label(self.start_window_base, text='评分卡模型训练', style='Title.TLabel').grid(column=0, row=0, sticky=(W), padx=20, pady=(18, 0))
+        ttk.Label(self.start_window_base, text='导入分组数据、设置建模参数并生成评分卡。', style='Subtitle.TLabel').grid(column=0, row=1, sticky=(W), padx=20, pady=(6, 14))
         # 导入数据
-        self.node_intro = LabelFrame(self.start_window_base, text='模块名称:')
-        L8 = Label(self.node_intro, width=25, text="模块名称:", justify="left")
+        self.node_intro = ttk.LabelFrame(self.start_window_base, text='模块信息', style='Card.TLabelframe', padding=(16, 14))
+        configure_form_grid(self.node_intro, 2)
+        L8 = ttk.Label(self.node_intro, text="模块名称", style='Field.TLabel')
         L8.grid(column=0, row=0, sticky=(W))
         if (self.load == 'N') & (self.finsh == 'N'):
             node_name = tk.StringVar(value=self.node_name)
-            self.entry_node_name = Entry(self.node_intro, textvariable=node_name, bd=1, width=18)
-            self.entry_node_name.grid(column=1, row=0, sticky=(W))
+            self.entry_node_name = ttk.Entry(self.node_intro, textvariable=node_name, width=24)
+            self.entry_node_name.grid(column=1, row=0, sticky='ew')
         else:
-            L88 = Label(self.node_intro, width=25, text="%s" % self.node_name, justify="left")
+            L88 = ttk.Label(self.node_intro, text="%s" % self.node_name, style='Hint.TLabel')
             L88.grid(column=1, row=0, sticky=(W))
-        self.node_intro.grid(columnspan=3, sticky=(W), padx=10, pady=10)
+        self.node_intro.grid(column=0, row=2, sticky='ew', padx=20, pady=(0, 12))
 
-        self.start_window_data = LabelFrame(self.start_window_base, text='导入分组数据:')
-        L1 = Label(self.start_window_data, width=25, text="分组数据:", justify="left")
+        self.start_window_data = ttk.LabelFrame(self.start_window_base, text='数据与变量', style='Card.TLabelframe', padding=(16, 14))
+        configure_form_grid(self.start_window_data, 2)
+        L1 = ttk.Label(self.start_window_data, text="分组数据", style='Field.TLabel')
         L1.grid(column=0, row=0, sticky=(W))
-        self.comboxlist_train_data = ttk.Combobox(self.start_window_data, width=15)
+        self.comboxlist_train_data = ttk.Combobox(self.start_window_data, width=22, state='readonly')
         self.comboxlist_train_data["value"] = self.IGN_list
         if self.IGN_grouped_train_data.empty != True:
             for i in range(len(self.IGN_list)):
                 if self.IGN_list[i] == self.IGN_node_name:
                     self.comboxlist_train_data.current(i)
         self.comboxlist_train_data.bind("<<ComboboxSelected>>", lambda event: self.load_data(event, datatype='train'))
-        self.comboxlist_train_data.grid(column=1, row=0, sticky=(W))
+        self.comboxlist_train_data.grid(column=1, row=0, sticky='ew', pady=(0, 10))
 
-        L3 = Label(self.start_window_data, width=25, text="自变量:", justify="left")
+        L3 = ttk.Label(self.start_window_data, text="自变量", style='Field.TLabel')
         L3.grid(column=0, row=2, sticky=(W))
-        self.comboxlist_variable_type = ttk.Combobox(self.start_window_data, width=15)
+        self.comboxlist_variable_type = ttk.Combobox(self.start_window_data, width=22, state='readonly')
         self.comboxlist_variable_type["value"] = ['WOE', 'GRP', 'GRP_ind']
         if self.par_variable_type == 'WOE':
             self.comboxlist_variable_type.current(0)
@@ -362,25 +363,25 @@ class model():
             self.comboxlist_variable_type.current(1)
         else:
             self.comboxlist_variable_type.current(2)
-        self.comboxlist_variable_type.grid(column=1, row=2, sticky=(W))
+        self.comboxlist_variable_type.grid(column=1, row=2, sticky='ew', pady=(0, 10))
 
-        L4 = Label(self.start_window_data, width=25, text="变量设置:", justify="left")
+        L4 = ttk.Label(self.start_window_data, text="变量设置", style='Field.TLabel')
         L4.grid(column=0, row=3, sticky=(W))
-        self.button_data_variablesetting = ttk.Button(self.start_window_data, text='设置:')
-        self.button_data_variablesetting.grid(column=1, row=3, sticky=(W))
+        self.button_data_variablesetting = ttk.Button(self.start_window_data, text='打开变量设置', style='Toolbar.TButton')
+        self.button_data_variablesetting.grid(column=1, row=3, sticky=(W), pady=(0, 10))
         self.button_data_variablesetting.bind("<Button-1>", self.show_variabledetail)
 
-        L8 = Label(self.start_window_data, width=25, text="冻结入模变量:", justify="left")
+        L8 = ttk.Label(self.start_window_data, text="冻结入模变量", style='Field.TLabel')
         L8.grid(column=0, row=5, sticky=(W))
-        self.comboxlist_freezing_code = ttk.Combobox(self.start_window_data, width=15)
+        self.comboxlist_freezing_code = ttk.Combobox(self.start_window_data, width=22, state='readonly')
         self.comboxlist_freezing_code["value"] = ['是', '否']
         if self.par_use_freezing_flag == '否':
             self.comboxlist_freezing_code.current(1)
         else:
             self.comboxlist_freezing_code.current(0)
-        self.comboxlist_freezing_code.grid(column=1, row=5, sticky=(W))
+        self.comboxlist_freezing_code.grid(column=1, row=5, sticky='ew')
 
-        self.start_window_data.grid(columnspan=3, sticky=(W), padx=10, pady=10)
+        self.start_window_data.grid(column=0, row=3, sticky='ew', padx=20, pady=(0, 12))
 
         # 模型参数
 
@@ -398,7 +399,7 @@ class model():
 
         # 模型设置
 
-        self.start_window_LR_setting = LabelFrame(self.start_window_base, text='模型参数设置:')
+        self.start_window_LR_setting = ttk.LabelFrame(self.start_window_base, text='模型参数设置', style='Card.TLabelframe', padding=(16, 14))
 
         L6 = Label(self.start_window_LR_setting, width=25, text="模型方法:", justify="left")
         L6.grid(column=0, row=5, sticky=(W))
@@ -503,10 +504,10 @@ class model():
             self.comboxlist_lasso_flag.current(0)
         self.comboxlist_lasso_flag.grid(column=1, row=16, sticky=(W))
 
-        self.start_window_LR_setting.grid(columnspan=3, sticky=(W), padx=10, pady=10)
+        self.start_window_LR_setting.grid(column=0, row=4, sticky='ew', padx=20, pady=(0, 12))
         # 评分卡设置
 
-        self.start_window_scorecard_setting = LabelFrame(self.start_window_base, text='评分卡设置:')
+        self.start_window_scorecard_setting = ttk.LabelFrame(self.start_window_base, text='评分卡设置', style='Card.TLabelframe', padding=(16, 14))
         L15 = Label(self.start_window_scorecard_setting, width=20, text="是否显示截距", justify="left")
         L15.grid(column=0, row=4, sticky=(W))
         self.comboxlist_intercept_scorecard = ttk.Combobox(self.start_window_scorecard_setting, width=15)
@@ -532,7 +533,7 @@ class model():
         self.entry_odds_score.grid(column=1, row=6, sticky=(W))
         # self.entry_odds_score.bind('<Return>', lambda event: self.int_num_check(event, 'entry_min_pct_char', 'gg'))
 
-        self.start_window_scorecard_setting.grid(columnspan=3, sticky=(W), padx=10, pady=10)
+        self.start_window_scorecard_setting.grid(column=0, row=5, sticky='ew', padx=20, pady=(0, 14))
 
         L10 = Label(self.start_window_scorecard_setting, width=20, text="翻倍点数:", justify="left")
         L10.grid(column=0, row=10, sticky=(W))
@@ -541,30 +542,32 @@ class model():
         self.entry_f_bin_num.grid(column=1, row=10, sticky=(W))
         # self.entry_f_bin_num.bind('<Return>', lambda event: self.int_num_check(event, 'entry_f_bin_num', 'gg'))
 
-        self.button_setting_save = ttk.Button(self.start_window_base, text='（保存）退出')
-        self.button_setting_save.grid(column=0, row=7, sticky=(W), padx=10, pady=10)
+        action_bar = ttk.Frame(self.start_window_base, style='App.TFrame')
+        action_bar.grid(column=0, row=6, sticky=(W), padx=20, pady=(0, 18))
+        self.button_setting_save = ttk.Button(action_bar, text='保存并退出', style='Secondary.TButton')
+        self.button_setting_save.grid(column=0, row=0, sticky=(W), padx=(0, 10))
         self.button_setting_save.bind("<Button-1>", self.save_project)
         if (self.load == 'Y') | (self.finsh == 'Y'):
-            self.check_result = ttk.Button(self.start_window_base, text='查看结果')
-            self.check_result.grid(column=1, row=7, sticky=(W), padx=10, pady=10)
+            self.check_result = ttk.Button(action_bar, text='查看结果', style='Toolbar.TButton')
+            self.check_result.grid(column=1, row=0, sticky=(W), padx=(0, 10))
             self.check_result.bind("<Button-1>", self.scorecard_result_show_ui)
         if (self.load == 'N') & (self.finsh == 'N'):
-            self.button_setting_run = ttk.Button(self.start_window_base, text='应用'
+            self.button_setting_run = ttk.Button(action_bar, text='开始训练', style='Accent.TButton'
                                                  # ,command=lambda event :self.thread_it(self.LR() , event)
                                                  )
-            self.button_setting_run.grid(column=2, row=7, sticky=(W))
+            self.button_setting_run.grid(column=2, row=0, sticky=(W))
             # self.button_setting_run.bind("<Button-1>", lambda event :self.thread_it(self.LR(event)  ))
             self.button_setting_run.bind("<Button-1>", self.LR)
         else:
-            self.button_refresh_run = ttk.Button(self.start_window_base, text='刷新结果')
-            self.button_refresh_run.grid(column=2, row=7, sticky=(W))
+            self.button_refresh_run = ttk.Button(action_bar, text='刷新结果', style='Accent.TButton')
+            self.button_refresh_run.grid(column=2, row=0, sticky=(W), padx=(0, 10))
             self.button_refresh_run.bind("<Button-1>", self.LR)
-            self.button_modify_manually = ttk.Button(self.start_window_base, text='手动调整变量')
-            self.button_modify_manually.grid(column=0, row=8, sticky=(W), padx=10, pady=10)
+            self.button_modify_manually = ttk.Button(action_bar, text='手动调整变量', style='Toolbar.TButton')
+            self.button_modify_manually.grid(column=3, row=0, sticky=(W), padx=(0, 10))
             self.button_modify_manually.bind("<Button-1>", self.modify_model)
 
-            self.button_output = ttk.Button(self.start_window_base, text='导出数据集')
-            self.button_output.grid(column=1, row=8, sticky=(W), padx=10, pady=10)
+            self.button_output = ttk.Button(action_bar, text='导出数据集', style='Toolbar.TButton')
+            self.button_output.grid(column=4, row=0, sticky=(W))
             self.button_output.bind("<Button-1>", self.out_dataset)
 
     def out_dataset(self, event):
@@ -602,7 +605,12 @@ class model():
                 par_intercept_flag=self.par_intercept_flag, par_variable_type=self.par_variable_type
                 )
             self.modify_model_ui = Toplevel(self.start_window_base)
-            f = LabelFrame(self.modify_model_ui, text='调整模型')
+            set_window_ready(self.modify_model_ui, '手动调整模型', 980, 720, resizable=True)
+            toolbar = ttk.Frame(self.modify_model_ui, style='App.TFrame', padding=(16, 16, 16, 8))
+            toolbar.pack(fill='x')
+            ttk.Label(toolbar, text='手动调整变量', style='SectionTitle.TLabel').pack(anchor='w')
+            ttk.Label(toolbar, text='右键变量可加入或移出当前模型。', style='Hint.TLabel').pack(anchor='w', pady=(4, 0))
+            f = ttk.LabelFrame(self.modify_model_ui, text='变量状态', style='Card.TLabelframe', padding=(12, 12))
             screen_width = f.winfo_screenwidth() * 0.5
             screen_height = f.winfo_screenheight() * 0.8
             self.table_sum = self.pt = Table(f, dataframe=self.df_modify_model, height=screen_height,
@@ -643,16 +651,15 @@ class model():
         self.record_list_modify.append(self.model_modify.summary2())
         self.modify_model_ui.destroy()
         self.modify_model_ui = Toplevel(self.master)
+        set_window_ready(self.modify_model_ui, '手动调整模型', 980, 760, resizable=True)
         def close(event):
             self.modify_model_ui.destroy()
         def model_save(event):
             self.modify_model_ui.destroy()
             error2_f = Toplevel(self.master)
-            screenwidth = self.master.winfo_screenwidth()
-            screenheight = self.master.winfo_screenheight()
-            error2_f.geometry('%dx%d+%d+%d' % (150, 100, (screenwidth - 150) / 2, (screenheight - 100) / 2))
-            L2 = Label(error2_f, text="保存中。。。")
-            L2.grid()
+            set_window_ready(error2_f, '保存中', 240, 120)
+            L2 = ttk.Label(error2_f, text="保存中，请稍候...", style='Field.TLabel')
+            L2.grid(padx=24, pady=32)
             self.master.update()
             self.model_ppp = [self.record_list_modify, self.model_modify, self.model_variable_df_modify, ]
             self.f_scorecard = self.scorecard_data_pre(self.model_ppp)
@@ -667,16 +674,16 @@ class model():
             except:
                 pass
 
-        d = LabelFrame(self.modify_model_ui)
-        self.check_result = ttk.Button(d, text='保存(关闭)')
+        d = ttk.Frame(self.modify_model_ui, style='App.TFrame', padding=(16, 16, 16, 8))
+        self.check_result = ttk.Button(d, text='保存并关闭', style='Accent.TButton')
         self.check_result.pack(side=LEFT)
         self.check_result.bind("<Button-1>", model_save)
-        self.check_result = ttk.Button(d, text='关闭')
-        self.check_result.pack(side=LEFT)
+        self.check_result = ttk.Button(d, text='关闭', style='Secondary.TButton')
+        self.check_result.pack(side=LEFT, padx=(10, 0))
         self.check_result.bind("<Button-1>", close)
-        d.pack()
+        d.pack(fill='x')
 
-        f = LabelFrame(self.modify_model_ui, text='调整模型')
+        f = ttk.LabelFrame(self.modify_model_ui, text='变量状态', style='Card.TLabelframe', padding=(12, 12))
         screen_width = f.winfo_screenwidth() * 0.5
         screen_height = f.winfo_screenheight() * 0.8
         self.table_sum = self.pt = Table(f, dataframe=self.df_modify_model, height=screen_height, width=screen_width)
@@ -690,7 +697,7 @@ class model():
         self.table_sum.bind("<Triple-Button-3>", self.handle_left_click)
         self.table_sum.bind("<Triple-Button-1>", self.handle_left_click)
         self.table_sum.bind("<Triple-Button-2>", self.handle_left_click)
-        f.pack()
+        f.pack(fill='both', expand=True, padx=16, pady=(0, 16))
 
     def save_project(self, event):
         try:
@@ -823,13 +830,24 @@ class model():
 
     def show_variabledetail(self, event):
         self.data_variable_set_ui = Toplevel(self.master)
-        self.data_variable_set_ui.title('变量设置')
+        set_window_ready(self.data_variable_set_ui, '变量设置', 1080, 760, resizable=True)
         self.refresh_datavariable_df()
 
     def refresh_datavariable_df(self):
-        f = Frame(self.data_variable_set_ui)
-        f.grid(column=0, row=1,
-               columnspan=6, sticky=(E, W))
+        for child in self.data_variable_set_ui.winfo_children():
+            child.destroy()
+
+        toolbar = ttk.Frame(self.data_variable_set_ui, style='App.TFrame', padding=(16, 16, 16, 8))
+        toolbar.grid(column=0, row=0, sticky='ew')
+        ttk.Label(toolbar, text='变量设置', style='SectionTitle.TLabel').pack(anchor='w')
+        ttk.Label(
+            toolbar,
+            text='右键变量可切换“是否使用”状态，也可标记为权重变量。',
+            style='Hint.TLabel'
+        ).pack(anchor='w', pady=(4, 0))
+
+        f = ttk.Frame(self.data_variable_set_ui, padding=(16, 8, 16, 16))
+        f.grid(column=0, row=1, columnspan=6, sticky=(E, W))
         screen_width = f.winfo_screenwidth() * 0.7
         screen_height = f.winfo_screenheight() * 0.9
         self.table = self.ptm = Table(f, dataframe=self.IGN_IGNvariable_setting, colspan=7,

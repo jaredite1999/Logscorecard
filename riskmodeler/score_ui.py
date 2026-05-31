@@ -17,6 +17,7 @@ import statsmodels.api as sm
 from .score_result_ui import score_result_ui
 
 import os
+from .ui import configure_form_grid, set_window_ready
 
 
 
@@ -196,68 +197,71 @@ class scoreing():
             tk.messagebox.showwarning('错误', "%s数据集导入错误：%s" % (self.comboxlist_SCR.get(), e))
     def Start_UI(self):
         self.start_window_base = self.master
-        width = self.master.winfo_screenwidth() * 0.2
-        height = self.master.winfo_screenheight() * 0.4
-        screenwidth = self.master.winfo_screenwidth()
-        screenheight = self.master.winfo_screenheight()
-        self.start_window_base.geometry(
-            '%dx%d+%d+%d' % (width, height, (screenwidth - width) / 2, (screenheight - height) / 2))
-        self.start_window_base.title('数据集打分')
+        set_window_ready(self.start_window_base, '数据集打分', 760, 420)
     def adjustsetting(self):
+        self.start_window_base.configure(bg='#f4f7fb')
+        self.start_window_base.grid_columnconfigure(0, weight=1)
+        ttk.Label(self.start_window_base, text='评分结果应用', style='Title.TLabel').grid(column=0, row=0, sticky=(W), padx=20, pady=(18, 0))
+        ttk.Label(self.start_window_base, text='选择打分数据与已训练模型，生成并导出评分结果。', style='Subtitle.TLabel').grid(column=0, row=1, sticky=(W), padx=20, pady=(6, 14))
         # 导入数据
-        self.node_intro = LabelFrame(self.start_window_base, text='模块名称:')
-        L8 = Label(self.node_intro, width=25, text="模块名称:", justify="left")
+        self.node_intro = ttk.LabelFrame(self.start_window_base, text='模块信息', style='Card.TLabelframe', padding=(16, 14))
+        configure_form_grid(self.node_intro, 2)
+        L8 = ttk.Label(self.node_intro, text="模块名称", style='Field.TLabel')
         L8.grid(column=0, row=0, sticky=(W))
         if (self.load == 'N') & (self.finsh == 'N'):
             node_name = tk.StringVar(value=self.node_name)
-            self.entry_node_name = Entry(self.node_intro, textvariable=node_name, bd=1, width=18)
-            self.entry_node_name.grid(column=1, row=0, sticky=(W))
+            self.entry_node_name = ttk.Entry(self.node_intro, textvariable=node_name, width=24)
+            self.entry_node_name.grid(column=1, row=0, sticky='ew')
         else:
-            L88 = Label(self.node_intro, width=25, text="%s" % self.node_name, justify="left")
+            L88 = ttk.Label(self.node_intro, text="%s" % self.node_name, style='Hint.TLabel')
             L88.grid(column=1, row=0, sticky=(W))
-        self.node_intro.grid(columnspan=3, sticky=(W), padx=10, pady=10)
+        self.node_intro.grid(column=0, row=2, sticky='ew', padx=20, pady=(0, 12))
 
-        self.start_window_data = LabelFrame(self.start_window_base, text='导入打分数据:')
-        L1 = Label(self.start_window_data, width=25, text="分组数据:", justify="left")
+        self.start_window_data = ttk.LabelFrame(self.start_window_base, text='打分配置', style='Card.TLabelframe', padding=(16, 14))
+        configure_form_grid(self.start_window_data, 2)
+        L1 = ttk.Label(self.start_window_data, text="分组数据", style='Field.TLabel')
         L1.grid(column=0, row=0, sticky=(W))
-        self.comboxlist_score_data = ttk.Combobox(self.start_window_data, width=15)
+        self.comboxlist_score_data = ttk.Combobox(self.start_window_data, width=22, state='readonly')
         self.comboxlist_score_data["value"] = self.scoredf_list
         if self.par_score_data.empty != True:
             for i in range(len(self.scoredf_list)):
                 if self.scoredf_list[i]==self.par_score_dataname:
                     self.comboxlist_score_data.current(i)
         self.comboxlist_score_data.bind("<<ComboboxSelected>>", lambda event: self.import_data_node(event))
-        self.comboxlist_score_data.grid(column=1, row=0, sticky=(W))
+        self.comboxlist_score_data.grid(column=1, row=0, sticky='ew', pady=(0, 10))
 
-        L3 = Label(self.start_window_data, width=25, text="导入模型:", justify="left")
+        L3 = ttk.Label(self.start_window_data, text="导入模型", style='Field.TLabel')
         L3.grid(column=0, row=2, sticky=(W))
-        self.comboxlist_SCR = ttk.Combobox(self.start_window_data, width=15)
+        self.comboxlist_SCR = ttk.Combobox(self.start_window_data, width=22, state='readonly')
         self.comboxlist_SCR["value"] = self.SCR_list
         if self.IGN_grouping_data.empty != True:
             for i in range(len(self.SCR_list)):
                 if self.SCR_list[i] == self.node_model_name:
                     self.comboxlist_SCR.current(i)
-        self.comboxlist_SCR.grid(column=1, row=2, sticky=(W))
+        self.comboxlist_SCR.grid(column=1, row=2, sticky='ew')
         self.comboxlist_SCR.bind("<<ComboboxSelected>>", lambda event: self.load_model_data(event))
-        self.start_window_data.grid(columnspan=3, sticky=(W), padx=10, pady=10)
+        ttk.Label(self.start_window_data, text='已有评分结果时可刷新或直接导出数据集。', style='Hint.TLabel').grid(column=1, row=3, sticky=(W), pady=(10, 0))
+        self.start_window_data.grid(column=0, row=3, sticky='ew', padx=20, pady=(0, 14))
 
-        self.button_setting_save = ttk.Button(self.start_window_base, text='（保存）退出')
-        self.button_setting_save.grid(column=0, row=7, sticky=(W), padx=10, pady=10)
+        action_bar = ttk.Frame(self.start_window_base, style='App.TFrame')
+        action_bar.grid(column=0, row=4, sticky=(W), padx=20, pady=(0, 18))
+        self.button_setting_save = ttk.Button(action_bar, text='保存并退出', style='Secondary.TButton')
+        self.button_setting_save.grid(column=0, row=0, sticky=(W), padx=(0, 10))
         self.button_setting_save.bind("<Button-1>", self.save_project)
         if (self.load == 'Y') | (self.finsh == 'Y'):
-            self.check_result = ttk.Button(self.start_window_base, text='查看结果')
-            self.check_result.grid(column=1, row=7, sticky=(W), padx=10, pady=10)
+            self.check_result = ttk.Button(action_bar, text='查看结果', style='Toolbar.TButton')
+            self.check_result.grid(column=1, row=0, sticky=(W), padx=(0, 10))
             self.check_result.bind("<Button-1>", self.scorecard_result_show_ui)
         if (self.load == 'N') & (self.finsh == 'N'):
-            self.button_setting_run = ttk.Button(self.start_window_base, text='应用')
-            self.button_setting_run.grid(column=2, row=7, sticky=(W))
+            self.button_setting_run = ttk.Button(action_bar, text='应用评分', style='Accent.TButton')
+            self.button_setting_run.grid(column=2, row=0, sticky=(W))
             self.button_setting_run.bind("<Button-1>", self.Scoring)
         else:
-            self.button_refresh_run = ttk.Button(self.start_window_base, text='刷新结果')
-            self.button_refresh_run.grid(column=2, row=7, sticky=(W))
+            self.button_refresh_run = ttk.Button(action_bar, text='刷新结果', style='Accent.TButton')
+            self.button_refresh_run.grid(column=2, row=0, sticky=(W), padx=(0, 10))
             self.button_refresh_run.bind("<Button-1>", self.Scoring)
-            self.button_output = ttk.Button(self.start_window_base, text='导出数据集')
-            self.button_output.grid(column=0, row=8, sticky=(W), padx=10, pady=10)
+            self.button_output = ttk.Button(action_bar, text='导出数据集', style='Toolbar.TButton')
+            self.button_output.grid(column=3, row=0, sticky=(W))
             self.button_output.bind("<Button-1>", self.out_dataset)
     def out_dataset(self, event):
         try:

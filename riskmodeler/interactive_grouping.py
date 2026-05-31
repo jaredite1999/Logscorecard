@@ -10,6 +10,7 @@ from .IGN_UI import UserInterfacea
 import datetime
 from tkinter import filedialog
 import os
+from .ui import configure_form_grid, set_window_ready
 binning = binning()
 
 class IGN():
@@ -243,67 +244,66 @@ class IGN():
                 tk.messagebox.showwarning('错误', "%s数据集导入错误：%s" % (add, e))
     def Start_UI(self):
         self.start_window_base = self.master
-        width = max(self.master.winfo_screenwidth() * 0.18,400)
-        height = self.master.winfo_screenheight() * 0.8
-        screenwidth = self.master.winfo_screenwidth()
-        screenheight = self.master.winfo_screenheight()
-        self.start_window_base.geometry(
-            '%dx%d+%d+%d' % (width, height, (screenwidth - width) / 2, (screenheight - height) / 2))
-        self.start_window_base.title('交互式分组参数设置')
-        print(height,width)
+        set_window_ready(self.start_window_base, '交互式分组参数设置', 920, 860, resizable=True)
     def adjustsetting(self):
+        self.start_window_base.configure(bg='#f4f7fb')
+        self.start_window_base.grid_columnconfigure(0, weight=1)
+        ttk.Label(self.start_window_base, text='交互式变量分组', style='Title.TLabel').grid(column=0, row=0, sticky=(W), padx=20, pady=(18, 0))
+        ttk.Label(self.start_window_base, text='配置样本、分箱规则与变量拒绝策略，生成可复用的分组节点。', style='Subtitle.TLabel').grid(column=0, row=1, sticky=(W), padx=20, pady=(6, 14))
         # 导入数据
-        self.node_intro=LabelFrame(self.start_window_base, text='模块名称:')
-        L8 = Label(self.node_intro, width=20, text="模块名称:")
+        self.node_intro=ttk.LabelFrame(self.start_window_base, text='模块信息', style='Card.TLabelframe', padding=(16, 14))
+        configure_form_grid(self.node_intro, 2)
+        L8 = ttk.Label(self.node_intro, text="模块名称", style='Field.TLabel')
         L8.grid(column=0, row=0, sticky=(W))
         if (self.load=='N')&(self.finsh=='N'):
             node_name=tk.StringVar(value=self.node_name)
-            self.entry_node_name= Entry(self.node_intro, textvariable=node_name, bd=1, width=18)
-            self.entry_node_name.grid(column=1, row=0, sticky=(W))
+            self.entry_node_name= ttk.Entry(self.node_intro, textvariable=node_name, width=24)
+            self.entry_node_name.grid(column=1, row=0, sticky='ew')
         else:
-            L88 = Label(self.node_intro, width=20, text="%s" %self.node_name)
+            L88 = ttk.Label(self.node_intro, text="%s" %self.node_name, style='Hint.TLabel')
             L88.grid(column=1, row=0, sticky=(W))
-        self.node_intro.grid(columnspan=3, sticky=(W), padx=10, pady=10)
+        self.node_intro.grid(column=0, row=2, sticky='ew', padx=20, pady=(0, 12))
 
 
-        self.start_window_data = LabelFrame(self.start_window_base, text='导入数据:')
-        L1 = Label(self.start_window_data, width=20, text="训练样本:")
+        self.start_window_data = ttk.LabelFrame(self.start_window_base, text='样本输入', style='Card.TLabelframe', padding=(16, 14))
+        configure_form_grid(self.start_window_data, 2)
+        L1 = ttk.Label(self.start_window_data, text="训练样本", style='Field.TLabel')
         L1.grid(column=0, row=0, sticky=(W))
-        self.comboxlist_train_data = ttk.Combobox(self.start_window_data, width=15)
+        self.comboxlist_train_data = ttk.Combobox(self.start_window_data, width=22, state='readonly')
         self.comboxlist_train_data["value"] = self.train_data_list
         if self.par_train_data.empty != True:
             for i in range(len(self.train_data_list)):
                 if self.train_data_list[i] == self.par_train_dataname:
                     self.comboxlist_train_data.current(i)
         self.comboxlist_train_data.bind("<<ComboboxSelected>>", lambda event: self.load_data(event, datatype='train'))
-        self.comboxlist_train_data.grid(column=1, row=0, sticky=(W))
+        self.comboxlist_train_data.grid(column=1, row=0, sticky='ew', pady=(0, 10))
 
-        L2 = Label(self.start_window_data, width=20, text="OOT样本:")
+        L2 = ttk.Label(self.start_window_data, text="OOT样本", style='Field.TLabel')
         L2.grid(column=0, row=1, sticky=(W))
-        self.comboxlist_oot_data = ttk.Combobox(self.start_window_data, width=15)
+        self.comboxlist_oot_data = ttk.Combobox(self.start_window_data, width=22, state='readonly')
         self.comboxlist_oot_data["value"] = self.oot_data_list
         if self.par_oot_data.empty != True:
             for i in range(len(self.oot_data_list)):
                 if self.oot_data_list[i] == self.par_oot_dataname:
                     self.comboxlist_oot_data.current(i)
         self.comboxlist_oot_data.bind("<<ComboboxSelected>>", lambda event: self.load_data(event, datatype='oot'))
-        self.comboxlist_oot_data.grid(column=1, row=1, sticky=(W))
+        self.comboxlist_oot_data.grid(column=1, row=1, sticky='ew', pady=(0, 10))
 
-        L3 = Label(self.start_window_data, width=20, text="拒绝样本:")
+        L3 = ttk.Label(self.start_window_data, text="拒绝样本", style='Field.TLabel')
         L3.grid(column=0, row=2, sticky=(W))
-        self.comboxlist_reject_data = ttk.Combobox(self.start_window_data, width=15)
+        self.comboxlist_reject_data = ttk.Combobox(self.start_window_data, width=22, state='readonly')
         self.comboxlist_reject_data["value"] = self.reject_data_list
         if self.par_reject_data.empty != True:
             for i in range(len(self.reject_data_list)):
                 if self.reject_data_list[i] == self.par_reject_dataname:
                     self.comboxlist_reject_data.current(i)
         self.comboxlist_reject_data.bind("<<ComboboxSelected>>", lambda event: self.load_data(event, datatype='reject'))
-        self.comboxlist_reject_data.grid(column=1, row=2, sticky=(W))
-        self.start_window_data.grid(columnspan=3, sticky=(W), padx=10, pady=10)
+        self.comboxlist_reject_data.grid(column=1, row=2, sticky='ew')
+        self.start_window_data.grid(column=0, row=3, sticky='ew', padx=20, pady=(0, 12))
 
         # 预定义分组
 
-        self.start_window_group_setting = LabelFrame(self.start_window_base, text='预定义分组:')
+        self.start_window_group_setting = ttk.LabelFrame(self.start_window_base, text='预定义分组', style='Card.TLabelframe', padding=(16, 14))
 
         L4 = Label(self.start_window_group_setting, width=20, text="变量设置:")
         L4.grid(column=0, row=3, sticky=(W))
@@ -329,11 +329,11 @@ class IGN():
         self.button_data_grouping_data_import = ttk.Button(self.start_window_group_setting, text='导入:')
         self.button_data_grouping_data_import.grid(column=1, row=7, sticky=(W))
         self.button_data_grouping_data_import.bind("<Button-1>", self.loading_grouping_data)
-        self.start_window_group_setting.grid(columnspan=3, sticky=(W), padx=10, pady=10)
+        self.start_window_group_setting.grid(column=0, row=4, sticky='ew', padx=20, pady=(0, 12))
 
         # 数值变量设置
 
-        self.start_window_numeric_setting = LabelFrame(self.start_window_base, text='数值型变量分组设置:')
+        self.start_window_numeric_setting = ttk.LabelFrame(self.start_window_base, text='数值型变量分组设置', style='Card.TLabelframe', padding=(16, 14))
         L6 = Label(self.start_window_numeric_setting, width=20, text="细分箱方法:")
         L6.grid(column=0, row=5, sticky=(W))
         L7 = Label(self.start_window_numeric_setting, width=20, text="分位数:", bd=1)
@@ -368,11 +368,11 @@ class IGN():
         self.button_special_code_data.grid(column=0, row=9)
         self.button_special_code_data.bind("<Button-1>", self.specialcode_example)
 
-        self.start_window_numeric_setting.grid(columnspan=3, sticky=(W), padx=10, pady=10)
+        self.start_window_numeric_setting.grid(column=0, row=5, sticky='ew', padx=20, pady=(0, 12))
 
         # 字符变量设置
 
-        self.start_window_char_setting = LabelFrame(self.start_window_base, text='字符型变量分组设置:')
+        self.start_window_char_setting = ttk.LabelFrame(self.start_window_base, text='字符型变量分组设置', style='Card.TLabelframe', padding=(16, 14))
         L15 = Label(self.start_window_char_setting, width=20, text="限制标准:")
         L15.grid(column=0, row=4, sticky=(W))
         self.comboxlist_char_limitrule_list = ttk.Combobox(self.start_window_char_setting, width=15)
@@ -397,10 +397,10 @@ class IGN():
         self.entry_min_pct_char.grid(column=1, row=6, sticky=(W))
         self.entry_min_pct_char.bind('<Return>', lambda event: self.int_num_check(event, 'entry_min_pct_char', 'pct'))
 
-        self.start_window_char_setting.grid(columnspan=3, sticky=(W), padx=10, pady=10)
+        self.start_window_char_setting.grid(column=0, row=6, sticky='ew', padx=20, pady=(0, 12))
 
         # 粗分箱参数设置
-        self.start_window_tree_setting = LabelFrame(self.start_window_base, text='粗分箱设置:')
+        self.start_window_tree_setting = ttk.LabelFrame(self.start_window_base, text='粗分箱设置', style='Card.TLabelframe', padding=(16, 14))
         L9 = Label(self.start_window_tree_setting, width=20, text="分裂准则:")
         L9.grid(column=0, row=9, sticky=(W))
         self.comboxlist_tree_split_list = ttk.Combobox(self.start_window_tree_setting, width=15)
@@ -434,12 +434,12 @@ class IGN():
         self.entry_min_pct_sample.bind('<Return>',
                                        lambda event: self.int_num_check(event, 'entry_min_pct_sample', 'pct'))
         if self.master.winfo_screenheight() <1000:
-            self.start_window_tree_setting.grid(column=5, row=1,columnspan=3, sticky=(W), padx=10, pady=10)
+            self.start_window_tree_setting.grid(column=0, row=7, sticky='ew', padx=20, pady=(0, 12))
         else:
-            self.start_window_tree_setting.grid(columnspan=3, sticky=(W), padx=10, pady=10)
+            self.start_window_tree_setting.grid(column=0, row=7, sticky='ew', padx=20, pady=(0, 12))
 
         # 变量拒绝设置
-        self.start_window_variable_reject_setting = LabelFrame(self.start_window_base, text='变量拒绝设置:')
+        self.start_window_variable_reject_setting = ttk.LabelFrame(self.start_window_base, text='变量拒绝设置', style='Card.TLabelframe', padding=(16, 14))
         L9 = Label(self.start_window_variable_reject_setting, width=20, text="变量拒绝准则:")
         L9.grid(column=0, row=13, sticky=(W))
         self.comboxlist_variable_reject_rule = ttk.Combobox(self.start_window_variable_reject_setting, width=15)
@@ -461,51 +461,53 @@ class IGN():
         self.iv_reject_min.bind('<Return>', lambda event: self.int_num_check(event, 'iv_reject_min', 'iv'))
 
         if self.master.winfo_screenheight() <1000:
-            self.start_window_variable_reject_setting.grid(column=5, row=2,columnspan=3, sticky=(W), padx=10, pady=10)
+            self.start_window_variable_reject_setting.grid(column=0, row=8, sticky='ew', padx=20, pady=(0, 14))
         else:
-            self.start_window_variable_reject_setting.grid(columnspan=3, sticky=(W), padx=10, pady=10)
-        self.button_setting_save = ttk.Button(self.start_window_base, text='退出')
-        self.button_setting_save.grid(column=0, row=7, sticky=(W), padx=10, pady=10)
+            self.start_window_variable_reject_setting.grid(column=0, row=8, sticky='ew', padx=20, pady=(0, 14))
+        action_bar = ttk.Frame(self.start_window_base, style='App.TFrame')
+        action_bar.grid(column=0, row=9, sticky=(W), padx=20, pady=(0, 18))
+        self.button_setting_save = ttk.Button(action_bar, text='保存并退出', style='Secondary.TButton')
+        self.button_setting_save.grid(column=0, row=0, sticky=(W), padx=(0, 10))
         self.button_setting_save.bind("<Button-1>", self.save_project)
         if (self.load == 'Y') | (self.finsh == 'Y'):
-            self.check_result = ttk.Button(self.start_window_base, text='查看结果')
-            self.check_result.grid(column=1, row=7, sticky=(W), padx=10, pady=10)
+            self.check_result = ttk.Button(action_bar, text='查看结果', style='Toolbar.TButton')
+            self.check_result.grid(column=1, row=0, sticky=(W), padx=(0, 10))
             self.check_result.bind("<Button-1>", self.show_result)
         if (self.load == 'N') & (self.finsh == 'N'):
-            self.button_setting_run = ttk.Button(self.start_window_base, text='应用')
-            self.button_setting_run.grid(column=2, row=7, sticky=(W))
+            self.button_setting_run = ttk.Button(action_bar, text='应用分组', style='Accent.TButton')
+            self.button_setting_run.grid(column=2, row=0, sticky=(W))
             self.button_setting_run.bind("<Button-1>", self.interactive_grouping)
         else:
-            self.button_refresh_run = ttk.Button(self.start_window_base, text='刷新结果')
-            self.button_refresh_run.grid(column=2, row=7, sticky=(W))
+            self.button_refresh_run = ttk.Button(action_bar, text='刷新结果', style='Accent.TButton')
+            self.button_refresh_run.grid(column=2, row=0, sticky=(W))
             self.button_refresh_run.bind("<Button-1>", self.interactive_grouping)
     # 检查所有变量参数是否正确
     def loading_grouping_data(self,event):
         # name = tk.StringVar(value='IGN')
         # path = tk.StringVar(value='D:\\SynologyDrive\\IGN2.IGN')
         self.Group_ui = Toplevel(self.master)
-        self.Group_ui.title('分组数据集导入（IGN)')
-        width = 500
-        height = 250
-        screenwidth = self.master.winfo_screenwidth()
-        screenheight = self.master.winfo_screenheight()
-
-        self.Group_ui.geometry(
-            '%dx%d+%d+%d' % (width, height, (screenwidth - width) / 2, (screenheight - height) / 2))
+        set_window_ready(self.Group_ui, '分组数据集导入（IGN）', 640, 240)
+        card = ttk.LabelFrame(self.Group_ui, text='导入 IGN 文件', style='Card.TLabelframe', padding=(18, 16))
+        card.grid(column=0, row=0, sticky='nsew', padx=20, pady=20)
+        configure_form_grid(card, 2)
 
         def selectExcelfile():
             sfname = filedialog.askopenfilename(title='选择IGN文件', filetypes=[('IGN', '*.IGN')])
             self.E111.delete(0, 'end')
             self.E111.insert(INSERT, sfname)
-        L1 = Label(self.Group_ui, text="数据集路径（IGN)")
-        L1.grid(column=0, row=0, columnspan=2, sticky=(W))
-        self.E111 = Entry(self.Group_ui, width=50,  bd=1)
-        self.E111.grid(column=1, row=0, sticky=(W))
-        button1 = ttk.Button(self.Group_ui, text='浏览', width=8, command=selectExcelfile)
-        button1.grid(column=2, row=0, sticky=(W))
+        L1 = ttk.Label(card, text="数据集路径（IGN）", style='Field.TLabel')
+        L1.grid(column=0, row=0, sticky=(W))
+        row = ttk.Frame(card, style='Card.TFrame')
+        row.grid(column=1, row=0, sticky='ew')
+        row.grid_columnconfigure(0, weight=1)
+        self.E111 = ttk.Entry(row, width=36)
+        self.E111.grid(column=0, row=0, sticky='ew')
+        button1 = ttk.Button(row, text='浏览', style='Secondary.TButton', command=selectExcelfile)
+        button1.grid(column=1, row=0, padx=(10, 0))
 
-        test_button4 = ttk.Button(self.Group_ui, text='确定')
-        test_button4.grid(column=1, row=5, sticky=(W))
+        ttk.Label(card, text='导入已有 IGN 文件后，将自动刷新当前分组配置。', style='Hint.TLabel').grid(column=1, row=1, sticky='w', pady=(10, 0))
+        test_button4 = ttk.Button(card, text='确认导入', style='Accent.TButton')
+        test_button4.grid(column=1, row=2, sticky=(W), pady=(16, 0))
         test_button4.bind("<Button-1>", self.grouping_dataim)
     def grouping_dataim(self,event):
         try:
@@ -857,14 +859,10 @@ class IGN():
         # name = tk.StringVar(value='data1')
         # path = tk.StringVar(value='D:\\SynologyDrive\\specialcode.csv')
         self.special_code_ui = Toplevel(self.master)
-        self.special_code_ui.title('特殊值数据集导入')
-        width = 500
-        height = 250
-        screenwidth = self.master.winfo_screenwidth()
-        screenheight = self.master.winfo_screenheight()
-
-        self.special_code_ui.geometry(
-            '%dx%d+%d+%d' % (width, height, (screenwidth - width) / 2, (screenheight - height) / 2))
+        set_window_ready(self.special_code_ui, '特殊值数据集导入', 640, 260)
+        card = ttk.LabelFrame(self.special_code_ui, text='特殊值文件', style='Card.TLabelframe', padding=(18, 16))
+        card.grid(column=0, row=0, sticky='nsew', padx=20, pady=20)
+        configure_form_grid(card, 2)
 
         def selectExcelfile():
             sfname = filedialog.askopenfilename(title='选择CSV文件', filetypes=[('CSV', '*.csv')])
@@ -873,27 +871,31 @@ class IGN():
             entry_name = os.path.basename(sfname).replace('.csv','')
             self.E2.delete(0, 'end')
             self.E2.insert(INSERT, entry_name)
-        L1 = Label(self.special_code_ui, text="数据集路径（CSV)")
-        L1.grid(column=0, row=0, columnspan=2, sticky=(W))
-        self.E1 = Entry(self.special_code_ui, width=50,  bd=1)
-        self.E1.grid(column=1, row=0, sticky=(W))
-        button1 = ttk.Button(self.special_code_ui, text='浏览', width=8, command=selectExcelfile)
-        button1.grid(column=2, row=0, sticky=(W))
+        L1 = ttk.Label(card, text="数据集路径（CSV）", style='Field.TLabel')
+        L1.grid(column=0, row=0, sticky=(W))
+        row = ttk.Frame(card, style='Card.TFrame')
+        row.grid(column=1, row=0, sticky='ew', pady=(0, 10))
+        row.grid_columnconfigure(0, weight=1)
+        self.E1 = ttk.Entry(row, width=36)
+        self.E1.grid(column=0, row=0, sticky='ew')
+        button1 = ttk.Button(row, text='浏览', style='Secondary.TButton', command=selectExcelfile)
+        button1.grid(column=1, row=0, padx=(10, 0))
 
-        L1 = Label(self.special_code_ui, text="数据集名称")
-        L1.grid(column=0, row=1, columnspan=2, sticky=(W))
-        self.E2 = Entry(self.special_code_ui, width=23, bd=1)
-        self.E2.grid(column=1, row=1, sticky=(W))
+        L1 = ttk.Label(card, text="数据集名称", style='Field.TLabel')
+        L1.grid(column=0, row=1, sticky=(W))
+        self.E2 = ttk.Entry(card, width=24)
+        self.E2.grid(column=1, row=1, sticky='ew', pady=(0, 10))
 
-        L3 = Label(self.special_code_ui, text="数据集编码")
+        L3 = ttk.Label(card, text="数据集编码", style='Field.TLabel')
         L3.grid(column=0, row=2, sticky=(W))
-        self.E3 = ttk.Combobox(self.special_code_ui)
+        self.E3 = ttk.Combobox(card, state='readonly')
         self.E3["value"] = ['utf-8', 'gbk']
         self.E3.current(0)
-        self.E3.grid(column=1, row=2, sticky=(W))
+        self.E3.grid(column=1, row=2, sticky='ew')
 
-        test_button4 = ttk.Button(self.special_code_ui, text='确定')
-        test_button4.grid(column=1, row=5, sticky=(W))
+        ttk.Label(card, text='文件需要包含 `variable` 和 `value` 两列。', style='Hint.TLabel').grid(column=1, row=3, sticky='w', pady=(10, 0))
+        test_button4 = ttk.Button(card, text='读取并预览', style='Accent.TButton')
+        test_button4.grid(column=1, row=4, sticky=(W), pady=(16, 0))
         test_button4.bind("<Button-1>", self.readdata)
     def readdata(self, event):
         path = self.E1.get()
@@ -907,18 +909,16 @@ class IGN():
                 tk.messagebox.showwarning('错误', "错误：数据集格式错误请看样例")
             else:
                 self.tt1 = Toplevel(self.special_code_ui)
-                self.tt1.title(name)
-                screenwidth = self.tt1.winfo_screenwidth()
-                screenheight = self.tt1.winfo_screenheight()
-                width = self.tt1.winfo_screenwidth() * 0.2
-                height = self.tt1.winfo_screenheight() * 0.4
-                self.tt1.geometry(
-                    '%dx%d+%d+%d' % (width, height, (screenwidth - width) / 2, (screenheight - height) / 2))
+                set_window_ready(self.tt1, name, 900, 620, resizable=True)
                 df = data[0:100]
-                test_button4 = ttk.Button(self.tt1, text='确定', command=lambda: self.save_spcecialcode_data(data, name))
-                test_button4.grid(column=0, row=0, sticky=(W))
+                toolbar = ttk.Frame(self.tt1, style='App.TFrame', padding=(16, 16, 16, 8))
+                toolbar.grid(column=0, row=0, sticky='ew')
+                ttk.Label(toolbar, text='特殊值预览', style='SectionTitle.TLabel').pack(anchor='w')
+                ttk.Label(toolbar, text='展示前 100 行，确认无误后导入。', style='Hint.TLabel').pack(anchor='w', pady=(4, 8))
+                test_button4 = ttk.Button(toolbar, text='确认导入', style='Accent.TButton', command=lambda: self.save_spcecialcode_data(data, name))
+                test_button4.pack(anchor='w')
 
-                f = Frame(self.tt1)
+                f = ttk.Frame(self.tt1, padding=(16, 0, 16, 16))
                 f.grid(column=0, row=1, sticky=(E, W))
                 screen_width = self.tt1.winfo_screenwidth() * 0.2
                 screen_height = self.tt1.winfo_screenheight() * 0.4
@@ -929,14 +929,13 @@ class IGN():
     def specialcode_example(self, event):
         dd = pd.DataFrame([{'variable': 'VAR1', 'value': '999'}, {'variable': 'VAR1', 'value': '-1'},
                            {'variable': 'VAR2', 'value': '-1'}])
-        tt = Toplevel()
-        tt.title('样例')
-        screenwidth = tt.winfo_screenwidth()
-        screenheight = tt.winfo_screenheight()
-        width = tt.winfo_screenwidth() * 0.2
-        height = tt.winfo_screenheight() * 0.4
-        tt.geometry('%dx%d+%d+%d' % (width, height, (screenwidth - width) / 2, (screenheight - height) / 2))
-        f = Frame(tt)
+        tt = Toplevel(self.master)
+        set_window_ready(tt, '特殊值样例', 760, 520, resizable=True)
+        toolbar = ttk.Frame(tt, style='App.TFrame', padding=(16, 16, 16, 8))
+        toolbar.grid(column=0, row=0, sticky='ew')
+        ttk.Label(toolbar, text='特殊值文件样例', style='SectionTitle.TLabel').pack(anchor='w')
+        ttk.Label(toolbar, text='CSV 至少需要 `variable` 与 `value` 两列。', style='Hint.TLabel').pack(anchor='w', pady=(4, 0))
+        f = ttk.Frame(tt, padding=(16, 8, 16, 16))
 
         f.grid(column=0, row=1, sticky=(E, W))
         screen_width = f.winfo_screenwidth() * 0.2
@@ -980,10 +979,16 @@ class IGN():
             pass
     def show_variabledetail(self, event):
         self.data_variable_set_ui = Toplevel(self.master)
-        self.data_variable_set_ui.title('变量设置')
+        set_window_ready(self.data_variable_set_ui, '变量设置', 1080, 760, resizable=True)
         self.refresh_datavariable_df()
     def refresh_datavariable_df(self):
-        f = Frame(self.data_variable_set_ui)
+        for child in self.data_variable_set_ui.winfo_children():
+            child.destroy()
+        toolbar = ttk.Frame(self.data_variable_set_ui, style='App.TFrame', padding=(16, 16, 16, 8))
+        toolbar.grid(column=0, row=0, sticky='ew')
+        ttk.Label(toolbar, text='变量设置', style='SectionTitle.TLabel').pack(anchor='w')
+        ttk.Label(toolbar, text='右键变量可切换“是否使用”状态。', style='Hint.TLabel').pack(anchor='w', pady=(4, 0))
+        f = ttk.Frame(self.data_variable_set_ui, padding=(16, 8, 16, 16))
         f.grid(column=0, row=1,
                columnspan=6, sticky=(E, W))
         screen_width = f.winfo_screenwidth() * 0.7
