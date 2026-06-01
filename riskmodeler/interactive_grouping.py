@@ -10,7 +10,7 @@ from .IGN_UI import UserInterfacea
 import datetime
 from tkinter import filedialog
 import os
-from .ui import configure_form_grid, set_window_ready
+from .ui import bind_scrollable_mousewheel, configure_form_grid, create_scrollable_form, set_window_ready
 binning = binning()
 
 class IGN():
@@ -19,7 +19,7 @@ class IGN():
         # project参数
         self.save = 'N'
         self.project_info = project_info
-        self.project_path = os.path.split(project_info[project_info['模块类型'] == 'project']['保存地址'][0])[0]
+        self.project_path = os.path.split(self._get_project_row('模块类型', 'project')['保存地址'])[0]
         self.node_name='IGN'
         self.exist_data = list(project_info['模块名字'])
         self.load='N'
@@ -94,13 +94,33 @@ class IGN():
 
         self.previous_oot_check_change =[]
         self.previous_oot_node_usedlist =[]
+
+    def _get_project_row(self, column, value):
+        matched = self.project_info[self.project_info[column] == value]
+        if matched.empty:
+            raise ValueError(f'未找到 {column}={value} 对应的项目记录')
+        return matched.iloc[0]
+
+    def _get_project_save_path(self, column, value):
+        return self._get_project_row(column, value)['保存地址']
+
+    def _read_project_node(self, column, value):
+        path = self._get_project_save_path(column, value)
+        with open(path, 'rb') as fr:
+            return pickle.load(fr)
+
+    def _effective_min_samples_leaf(self):
+        sample_count = len(self.par_train_data)
+        pct_based_value = int(sample_count * self.par_min_pct_group)
+        return max(1, min(self.par_min_num_group, pct_based_value))
+
     def load_data(self, event, datatype):
         try:
             if datatype == 'train':
-                path = self.project_info[self.project_info['模块名字'] == self.comboxlist_train_data.get()]['保存地址'][0]
-                fr = open(path, 'rb')
-                node_info = pickle.load(fr)
-                fr.close()
+                selected_name = str(self.comboxlist_train_data.get()).strip()
+                if selected_name == '':
+                    raise ValueError('请选择训练样本')
+                node_info = self._read_project_node('模块名字', selected_name)
                 self.par_traindatavariable_setting = node_info[0]['data_variable_setting']
                 self.par_train_dataname = node_info[0]['node_name']
                 self.par_train_dataname_time=node_info[0]['time']
@@ -136,10 +156,7 @@ class IGN():
                     self.IGNvariable_setting = pd.merge(self.IGNvariable_setting, oot,
                                                         how='outer', left_on='变量名称', right_on='变量名称_时间外样本')
             elif (datatype == 'reject')&(str(self.comboxlist_reject_data.get())!='NO'):
-                path = self.project_info[self.project_info['模块名字'] == self.comboxlist_reject_data.get()]['保存地址'][0]
-                fr = open(path, 'rb')
-                node_info = pickle.load(fr)
-                fr.close()
+                node_info = self._read_project_node('模块名字', str(self.comboxlist_reject_data.get()).strip())
                 self.par_rejectdatavariable_setting = node_info[0]['data_variable_setting']
                 self.par_reject_dataname = node_info[0]['node_name']
                 self.par_reject_dataname_time=node_info[0]['time']
@@ -161,10 +178,7 @@ class IGN():
                     self.IGNvariable_setting = pd.merge(self.IGNvariable_setting, reject,
                                                         how='outer', left_on='变量名称', right_on='变量名称_拒绝样本')
             elif (datatype == 'oot')&(str(self.comboxlist_oot_data.get())!='NO'):
-                path = self.project_info[self.project_info['模块名字'] == self.comboxlist_oot_data.get()]['保存地址'][0]
-                fr = open(path, 'rb')
-                node_info = pickle.load(fr)
-                fr.close()
+                node_info = self._read_project_node('模块名字', str(self.comboxlist_oot_data.get()).strip())
                 self.par_ootdatavariable_setting = node_info[0]['data_variable_setting']
                 self.par_oot_dataname = node_info[0]['node_name']
                 self.par_oot_dataname_time=node_info[0]['time']
@@ -216,7 +230,8 @@ class IGN():
                 else:
                     pass
         except  Exception as e:
-            tk.messagebox.showwarning('错误', "%s数据集导入错误：%s" % (datatype, e))
+            detail = e if isinstance(e, str) else repr(e) if str(e).strip() == '' else str(e)
+            tk.messagebox.showwarning('错误', "%s数据集导入错误：%s" % (datatype, detail))
     def pre_data(self):
         dd = list((self.project_info[(self.project_info['模块类型'] == 'DATA') |
                                      (self.project_info['模块类型'] == 'SPLIT') |
@@ -246,12 +261,20 @@ class IGN():
         self.start_window_base = self.master
         set_window_ready(self.start_window_base, '交互式分组参数设置', 920, 860, resizable=True)
     def adjustsetting(self):
+        for child in self.start_window_base.winfo_children():
+            child.destroy()
         self.start_window_base.configure(bg='#f4f7fb')
         self.start_window_base.grid_columnconfigure(0, weight=1)
-        ttk.Label(self.start_window_base, text='交互式变量分组', style='Title.TLabel').grid(column=0, row=0, sticky=(W), padx=20, pady=(18, 0))
-        ttk.Label(self.start_window_base, text='配置样本、分箱规则与变量拒绝策略，生成可复用的分组节点。', style='Subtitle.TLabel').grid(column=0, row=1, sticky=(W), padx=20, pady=(6, 14))
+        self.start_window_base.grid_rowconfigure(0, weight=1)
+
+        page_wrap, page = create_scrollable_form(self.start_window_base)
+        page_wrap.grid(column=0, row=0, sticky='nsew')
+        page.grid_columnconfigure(0, weight=1)
+
+        ttk.Label(page, text='交互式变量分组', style='Title.TLabel').grid(column=0, row=0, sticky=(W), padx=20, pady=(18, 0))
+        ttk.Label(page, text='配置样本、分箱规则与变量拒绝策略，生成可复用的分组节点。', style='Subtitle.TLabel').grid(column=0, row=1, sticky=(W), padx=20, pady=(6, 14))
         # 导入数据
-        self.node_intro=ttk.LabelFrame(self.start_window_base, text='模块信息', style='Card.TLabelframe', padding=(16, 14))
+        self.node_intro=ttk.LabelFrame(page, text='模块信息', style='Card.TLabelframe', padding=(16, 14))
         configure_form_grid(self.node_intro, 2)
         L8 = ttk.Label(self.node_intro, text="模块名称", style='Field.TLabel')
         L8.grid(column=0, row=0, sticky=(W))
@@ -265,7 +288,7 @@ class IGN():
         self.node_intro.grid(column=0, row=2, sticky='ew', padx=20, pady=(0, 12))
 
 
-        self.start_window_data = ttk.LabelFrame(self.start_window_base, text='样本输入', style='Card.TLabelframe', padding=(16, 14))
+        self.start_window_data = ttk.LabelFrame(page, text='样本输入', style='Card.TLabelframe', padding=(16, 14))
         configure_form_grid(self.start_window_data, 2)
         L1 = ttk.Label(self.start_window_data, text="训练样本", style='Field.TLabel')
         L1.grid(column=0, row=0, sticky=(W))
@@ -303,7 +326,7 @@ class IGN():
 
         # 预定义分组
 
-        self.start_window_group_setting = ttk.LabelFrame(self.start_window_base, text='预定义分组', style='Card.TLabelframe', padding=(16, 14))
+        self.start_window_group_setting = ttk.LabelFrame(page, text='预定义分组', style='Card.TLabelframe', padding=(16, 14))
 
         L4 = Label(self.start_window_group_setting, width=20, text="变量设置:")
         L4.grid(column=0, row=3, sticky=(W))
@@ -333,7 +356,7 @@ class IGN():
 
         # 数值变量设置
 
-        self.start_window_numeric_setting = ttk.LabelFrame(self.start_window_base, text='数值型变量分组设置', style='Card.TLabelframe', padding=(16, 14))
+        self.start_window_numeric_setting = ttk.LabelFrame(page, text='数值型变量分组设置', style='Card.TLabelframe', padding=(16, 14))
         L6 = Label(self.start_window_numeric_setting, width=20, text="细分箱方法:")
         L6.grid(column=0, row=5, sticky=(W))
         L7 = Label(self.start_window_numeric_setting, width=20, text="分位数:", bd=1)
@@ -372,7 +395,7 @@ class IGN():
 
         # 字符变量设置
 
-        self.start_window_char_setting = ttk.LabelFrame(self.start_window_base, text='字符型变量分组设置', style='Card.TLabelframe', padding=(16, 14))
+        self.start_window_char_setting = ttk.LabelFrame(page, text='字符型变量分组设置', style='Card.TLabelframe', padding=(16, 14))
         L15 = Label(self.start_window_char_setting, width=20, text="限制标准:")
         L15.grid(column=0, row=4, sticky=(W))
         self.comboxlist_char_limitrule_list = ttk.Combobox(self.start_window_char_setting, width=15)
@@ -400,7 +423,7 @@ class IGN():
         self.start_window_char_setting.grid(column=0, row=6, sticky='ew', padx=20, pady=(0, 12))
 
         # 粗分箱参数设置
-        self.start_window_tree_setting = ttk.LabelFrame(self.start_window_base, text='粗分箱设置', style='Card.TLabelframe', padding=(16, 14))
+        self.start_window_tree_setting = ttk.LabelFrame(page, text='粗分箱设置', style='Card.TLabelframe', padding=(16, 14))
         L9 = Label(self.start_window_tree_setting, width=20, text="分裂准则:")
         L9.grid(column=0, row=9, sticky=(W))
         self.comboxlist_tree_split_list = ttk.Combobox(self.start_window_tree_setting, width=15)
@@ -439,7 +462,7 @@ class IGN():
             self.start_window_tree_setting.grid(column=0, row=7, sticky='ew', padx=20, pady=(0, 12))
 
         # 变量拒绝设置
-        self.start_window_variable_reject_setting = ttk.LabelFrame(self.start_window_base, text='变量拒绝设置', style='Card.TLabelframe', padding=(16, 14))
+        self.start_window_variable_reject_setting = ttk.LabelFrame(page, text='变量拒绝设置', style='Card.TLabelframe', padding=(16, 14))
         L9 = Label(self.start_window_variable_reject_setting, width=20, text="变量拒绝准则:")
         L9.grid(column=0, row=13, sticky=(W))
         self.comboxlist_variable_reject_rule = ttk.Combobox(self.start_window_variable_reject_setting, width=15)
@@ -464,7 +487,7 @@ class IGN():
             self.start_window_variable_reject_setting.grid(column=0, row=8, sticky='ew', padx=20, pady=(0, 14))
         else:
             self.start_window_variable_reject_setting.grid(column=0, row=8, sticky='ew', padx=20, pady=(0, 14))
-        action_bar = ttk.Frame(self.start_window_base, style='App.TFrame')
+        action_bar = ttk.Frame(page, style='App.TFrame')
         action_bar.grid(column=0, row=9, sticky=(W), padx=20, pady=(0, 18))
         self.button_setting_save = ttk.Button(action_bar, text='保存并退出', style='Secondary.TButton')
         self.button_setting_save.grid(column=0, row=0, sticky=(W), padx=(0, 10))
@@ -481,6 +504,7 @@ class IGN():
             self.button_refresh_run = ttk.Button(action_bar, text='刷新结果', style='Accent.TButton')
             self.button_refresh_run.grid(column=2, row=0, sticky=(W))
             self.button_refresh_run.bind("<Button-1>", self.interactive_grouping)
+        bind_scrollable_mousewheel(page)
     # 检查所有变量参数是否正确
     def loading_grouping_data(self,event):
         # name = tk.StringVar(value='IGN')
@@ -601,10 +625,7 @@ class IGN():
                 button_back.bind("<Button-1>", back)
             else:
                 try:
-                    path = self.project_info[self.project_info['创建时间'] == self.par_train_dataname_time]['保存地址'][0]
-                    fr = open(path, 'rb')
-                    node_info = pickle.load(fr)
-                    fr.close()
+                    node_info = self._read_project_node('创建时间', self.par_train_dataname_time)
                     self.par_traindatavariable_setting = node_info[0]['data_variable_setting']
                     self.par_train_dataname = node_info[0]['node_name']
                     self.previous_train_node_usedlist = node_info[0]['use_node']
@@ -615,10 +636,7 @@ class IGN():
                         print(node_info[0]['node_type'])
 
                     if self.par_reject_dataname_time != None:
-                        path = self.project_info[self.project_info['创建时间'] == self.par_reject_dataname_time]['保存地址'][0]
-                        fr = open(path, 'rb')
-                        node_info = pickle.load(fr)
-                        fr.close()
+                        node_info = self._read_project_node('创建时间', self.par_reject_dataname_time)
                         self.par_rejectdatavariable_setting = node_info[0]['data_variable_setting']
                         self.par_reject_dataname = node_info[0]['node_name']
                         self.par_reject_dataname_time=node_info[0]['time']
@@ -627,10 +645,7 @@ class IGN():
                         self.par_reject_data = node_info[1]
 
                     if self.par_oot_dataname_time != None:
-                        path = self.project_info[self.project_info['创建时间'] == self.par_oot_dataname_time]['保存地址'][0]
-                        fr = open(path, 'rb')
-                        node_info = pickle.load(fr)
-                        fr.close()
+                        node_info = self._read_project_node('创建时间', self.par_oot_dataname_time)
                         self.par_ootdatavariable_setting = node_info[0]['data_variable_setting']
                         self.par_oot_dataname = node_info[0]['node_name']
                         self.par_oot_dataname_time=node_info[0]['time']
@@ -1166,8 +1181,7 @@ class IGN():
                                                                                  special_code=special_code,
                                                                                  criterion=self.par_tree_criterion,
                                                                                  max_depth=20,
-                                                                                 min_samples_leaf=min(self.par_min_num_group,
-                                                                                                      int(len(self.par_train_data) * self.par_min_pct_group)),
+                                                                                 min_samples_leaf=self._effective_min_samples_leaf(),
                                                                                  max_leaf_nodes=self.par_num_f_group,
                                                                                  )
                     self.groupingdata['variable_type'] = self.groupingdata.apply(
@@ -1206,10 +1220,7 @@ class IGN():
                                                                                      special_code=special_code,
                                                                                      criterion=self.par_tree_criterion,
                                                                                      max_depth=20,
-                                                                                     min_samples_leaf=min(
-                                                                                         self.par_min_num_group,
-                                                                                         int(len(
-                                                                                             self.par_train_data) * self.par_min_pct_group)),
+                                                                                     min_samples_leaf=self._effective_min_samples_leaf(),
                                                                                      max_leaf_nodes=self.par_num_f_group,
                                                                                      )
                         self.groupingdata_new['variable_type']=self.groupingdata_new.apply(lambda x: 'num' if x['variable_name'] in list_num_left else 'char', axis=1)

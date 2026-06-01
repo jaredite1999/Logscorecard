@@ -22,9 +22,18 @@ class binning():
     
     提供各种分箱方法和报告生成功能。
     """
+    @staticmethod
+    def normalize_min_samples_leaf(min_samples_leaf):
+        try:
+            value = int(min_samples_leaf)
+        except (TypeError, ValueError):
+            value = 1
+        return max(1, value)
+
     def fit_bin(self, data, varnum, varchar, target, s_bin_num=20, special_code=pd.DataFrame(), min_num=500, min_pct=0.05, n_job=None, criterion='entropy', splitter='best', max_depth=6, min_samples_leaf=500,max_leaf_nodes=9):
         if n_job == None:
             n_job = joblib.cpu_count() - 1
+        min_samples_leaf = self.normalize_min_samples_leaf(min_samples_leaf)
         #        colnum=data[colmns].select_dtypes(include=['float','int8','int16','int32','int64']).columns.values.tolist()
         #        colchar=data[colmns].select_dtypes(include=['object']).columns.values.tolist()
         column = varnum + varchar

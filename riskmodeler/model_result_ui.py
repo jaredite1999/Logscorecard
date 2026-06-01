@@ -18,10 +18,9 @@ from openpyxl.styles.borders import Border, Side, BORDER_THIN
 from openpyxl.styles import PatternFill,  colors
 from openpyxl.formatting.rule import ColorScaleRule
 import math
-from .ui import BG_COLOR, configure_form_grid, create_readonly_text, create_scrollable_treeview, set_window_ready
-mpl.rcParams['font.sans-serif'] = ['SimHei']
-plt.rcParams['font.sans-serif']=['SimHei']
-mpl.rcParams['axes.unicode_minus']=False
+from .ui import BG_COLOR, configure_form_grid, configure_matplotlib_fonts, create_readonly_text, create_scrollable_treeview, set_window_ready
+configure_matplotlib_fonts()
+plt.rcParams['font.sans-serif'] = mpl.rcParams['font.sans-serif']
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 class ScrollableFrame(ttk.Frame):
     def __init__(self, container, *args, **kwargs):

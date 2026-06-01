@@ -7,6 +7,8 @@ from __future__ import annotations
 import tkinter as tk
 from tkinter import ttk
 from tkinter.scrolledtext import ScrolledText
+import matplotlib as mpl
+from matplotlib import font_manager
 
 
 BG_COLOR = "#f4f7fb"
@@ -18,6 +20,20 @@ MUTED_COLOR = "#5b7086"
 BORDER_COLOR = "#d7e2ee"
 SUCCESS_COLOR = "#1a7f37"
 WARNING_COLOR = "#b54708"
+
+PREFERRED_CJK_FONTS = [
+    "PingFang SC",
+    "Hiragino Sans GB",
+    "Heiti SC",
+    "STHeiti",
+    "Songti SC",
+    "SimHei",
+    "Microsoft YaHei",
+    "Noto Sans CJK SC",
+    "WenQuanYi Zen Hei",
+    "Arial Unicode MS",
+    "DejaVu Sans",
+]
 
 
 def apply_app_style(root: tk.Misc) -> ttk.Style:
@@ -91,6 +107,14 @@ def clear_and_fill(entry_widget: tk.Entry, value: str) -> None:
     entry_widget.insert(tk.INSERT, value)
 
 
+def configure_matplotlib_fonts() -> str:
+    available_fonts = {font.name for font in font_manager.fontManager.ttflist}
+    selected_font = next((font for font in PREFERRED_CJK_FONTS if font in available_fonts), "DejaVu Sans")
+    mpl.rcParams["font.sans-serif"] = [selected_font]
+    mpl.rcParams["axes.unicode_minus"] = False
+    return selected_font
+
+
 def create_scrollable_treeview(
     parent: tk.Misc,
     columns: tuple[str, ...],
@@ -116,3 +140,84 @@ def create_readonly_text(parent: tk.Misc, width: int, height: int) -> ScrolledTe
     text = ScrolledText(parent, width=width, height=height, relief="flat", borderwidth=1)
     text.configure(background="white", foreground=TEXT_COLOR, insertbackground=TEXT_COLOR)
     return text
+
+
+def create_scrollable_form(parent: tk.Misc) -> tuple[ttk.Frame, ttk.Frame]:
+    outer = ttk.Frame(parent, style="App.TFrame")
+    outer.grid_columnconfigure(0, weight=1)
+    outer.grid_rowconfigure(0, weight=1)
+
+    canvas = tk.Canvas(outer, background=BG_COLOR, highlightthickness=0)
+    canvas.grid(column=0, row=0, sticky="nsew")
+
+    scrollbar = ttk.Scrollbar(outer, orient="vertical", command=canvas.yview)
+    scrollbar.grid(column=1, row=0, sticky="ns")
+    canvas.configure(yscrollcommand=scrollbar.set)
+
+    content = ttk.Frame(canvas, style="App.TFrame")
+    window_id = canvas.create_window((0, 0), window=content, anchor="nw")
+
+    def on_content_configure(_event=None):
+        canvas.configure(scrollregion=canvas.bbox("all"))
+
+    def on_canvas_configure(event):
+        canvas.itemconfigure(window_id, width=event.width)
+
+    def on_mousewheel(event):
+        delta = event.delta
+        if delta == 0 and getattr(event, "num", None) in (4, 5):
+            delta = 120 if event.num == 4 else -120
+        if delta == 0:
+            return
+        window_system = canvas.tk.call("tk", "windowingsystem")
+        if window_system == "aqua":
+            step = -1 if delta > 0 else 1
+        else:
+            step = int(-delta / 120)
+            if step == 0:
+                step = -1 if delta > 0 else 1
+        canvas.yview_scroll(step, "units")
+
+    def bind_mousewheel(_event=None):
+        canvas.bind_all("<MouseWheel>", on_mousewheel)
+        canvas.bind_all("<Button-4>", on_mousewheel)
+        canvas.bind_all("<Button-5>", on_mousewheel)
+
+    def unbind_mousewheel(_event=None):
+        try:
+            pointer_widget = canvas.winfo_containing(canvas.winfo_pointerx(), canvas.winfo_pointery())
+        except Exception:
+            pointer_widget = None
+
+        while pointer_widget is not None:
+            if pointer_widget in (outer, canvas, content):
+                return
+            pointer_widget = pointer_widget.master
+
+        canvas.unbind_all("<MouseWheel>")
+        canvas.unbind_all("<Button-4>")
+        canvas.unbind_all("<Button-5>")
+
+    content.bind("<Configure>", on_content_configure)
+    canvas.bind("<Configure>", on_canvas_configure)
+    for widget in (outer, canvas, content):
+        widget.bind("<Enter>", bind_mousewheel)
+        widget.bind("<Leave>", unbind_mousewheel)
+
+    content._bind_mousewheel = bind_mousewheel
+    content._unbind_mousewheel = unbind_mousewheel
+
+    return outer, content
+
+
+def bind_scrollable_mousewheel(container: tk.Misc) -> None:
+    bind_mousewheel = getattr(container, "_bind_mousewheel", None)
+    unbind_mousewheel = getattr(container, "_unbind_mousewheel", None)
+    for child in container.winfo_children():
+        if bind_mousewheel is not None and unbind_mousewheel is not None:
+            try:
+                child.bind("<Enter>", bind_mousewheel, add="+")
+                child.bind("<Leave>", unbind_mousewheel, add="+")
+            except Exception:
+                pass
+        bind_scrollable_mousewheel(child)

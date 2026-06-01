@@ -11,8 +11,9 @@ group_func =group_func()
 binning =binning()
 import matplotlib.pyplot as plt
 from pylab import mpl
-mpl.rcParams['font.sans-serif'] = ['SimHei']
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from .ui import configure_matplotlib_fonts, set_window_ready
+configure_matplotlib_fonts()
 
 class UserInterfacea():
     # Launch the df in a pandastable frame
@@ -114,7 +115,13 @@ class UserInterfacea():
         self.detail_modify = self.detail_modify.sort_values(by=['信息熵', '变量名称', '组编号'], ascending=[False, False, True])
     def create_firstUI(self ,mainfram):
         self.root6 = mainfram
-        self.root6.title("Univariate Analysis Report.")
+        set_window_ready(self.root6, "单变量分析报告", 1320, 860, resizable=True)
+        try:
+            self.root6.transient(self.root6.master)
+        except Exception:
+            pass
+        self.root6.lift()
+        self.root6.focus_force()
         self.root6.resizable(width=True, height=True)
     def create_modify(self ,type_c):
         if type_c =='first':
@@ -140,15 +147,12 @@ class UserInterfacea():
                 child.destroy()
         else:
             self.top_modify = Toplevel(self.root6)
-            self.top_modify.title('%s ' %self.modify_var)
             width = self.top_modify.winfo_screenwidth( ) *0.7
             height = self.top_modify.winfo_screenheight( ) *0.6
-
-            # 获取屏幕尺寸以计算布局参数，使窗口居屏幕中央
-            screenwidth = self.top_modify.winfo_screenwidth()
-            screenheight = self.top_modify.winfo_screenheight()
-            alignstr = '%dx%d+%d+%d' % (width, height, (screenwidth -width ) /2, (screenheight -height ) /2)
-            self.top_modify.geometry(alignstr)
+            set_window_ready(self.top_modify, '%s' % self.modify_var, int(width), int(height), resizable=True)
+            self.top_modify.transient(self.root6)
+            self.top_modify.lift()
+            self.top_modify.focus_force()
             self.old_iv =round(self.modify_modify_var['信息熵'].unique()[0] ,2)
         self.new_iv =round(self.modify_modify_var['信息熵'].unique()[0] ,2)
         self.top_modify.resizable(width=True, height=True)
@@ -426,7 +430,10 @@ class UserInterfacea():
                         self.group_info_modify_var[self.group_info_modify_var['s_group'] == value]['s_max'].values[0]
                     self.s_min = \
                         self.group_info_modify_var[self.group_info_modify_var['s_group'] == value]['s_min'].values[0]
-                    self.top_s_group_modify = Toplevel()
+                    self.top_s_group_modify = Toplevel(self.top_modify)
+                    self.top_s_group_modify.transient(self.top_modify)
+                    self.top_s_group_modify.lift()
+                    self.top_s_group_modify.focus_force()
                     self.top_s_group_modify.title('增加新的分隔值')
                     self.top_s_group_modify.geometry('%sx%s+%s+%s' % (150, 100, event.x_root, event.y_root))
                     self.L1 = Label(self.top_s_group_modify, text="请输入新分隔值")

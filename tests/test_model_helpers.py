@@ -1,5 +1,6 @@
 import pandas as pd
 
+from riskmodeler.func import binning
 from riskmodeler.model import lrmodel
 
 
@@ -70,3 +71,9 @@ def test_restrict_candidate_variables_removes_constant_columns():
     assert "var_a" not in filtered
     assert set(filtered) == {"var_b", "var_c"}
     assert len(record_list) == 2
+
+
+def test_normalize_min_samples_leaf_never_returns_zero():
+    assert binning.normalize_min_samples_leaf(0) == 1
+    assert binning.normalize_min_samples_leaf(-3) == 1
+    assert binning.normalize_min_samples_leaf(2) == 2

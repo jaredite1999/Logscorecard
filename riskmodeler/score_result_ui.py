@@ -10,10 +10,9 @@ import numpy as np
 import pandas as pd
 
 import seaborn as sns
-from .ui import BG_COLOR, create_readonly_text, create_scrollable_treeview, set_window_ready
-mpl.rcParams['font.sans-serif'] = ['SimHei']
-plt.rcParams['font.sans-serif']=['SimHei']
-mpl.rcParams['axes.unicode_minus']=False
+from .ui import BG_COLOR, configure_matplotlib_fonts, create_readonly_text, create_scrollable_treeview, set_window_ready
+configure_matplotlib_fonts()
+plt.rcParams['font.sans-serif'] = mpl.rcParams['font.sans-serif']
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 class ScrollableFrame(ttk.Frame):
     def __init__(self, container, *args, **kwargs):
