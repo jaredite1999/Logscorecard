@@ -7,7 +7,7 @@ import pickle as pickle
 import datetime
 import os
 from tkinter import filedialog
-from .ui import clear_and_fill, configure_form_grid, set_window_ready
+from .ui import clear_and_fill, configure_form_grid, set_window_ready, show_error, show_info
 class inputdata():
     def __init__(self, mainfram, project_info):
         self.data_set = pd.DataFrame()
@@ -243,14 +243,14 @@ class inputdata():
         coding = self.E3.get()
         datarole = self.role.get()
         if name in self.exist_data:
-            tk.messagebox.showwarning('错误', "该数据集集名称已存在")
+            show_error("数据集名称已存在，请更换一个新的名称")
 
         else:
 
             try:
                 data = pd.read_csv(r'%s' % path, encoding='%s' % coding, low_memory=False)
                 if data.empty == True:
-                    tk.messagebox.showwarning('错误', "错误：数据集为空")
+                    show_error("读取失败，数据集为空")
                 else:
                     settingdata = pd.DataFrame()
                     settingdata['变量名称'] = data.columns
@@ -278,7 +278,7 @@ class inputdata():
                     self.data_coding = coding
                     self.variable_seting_ui()
             except Exception as e:
-                tk.messagebox.showwarning('错误', e)
+                show_error("读取数据集失败，请检查文件路径、编码和 CSV 格式", e)
 
     def variable_seting_ui(self):
         for child in self.master.winfo_children():
@@ -322,49 +322,49 @@ class inputdata():
         error=0
         if 'SCORE' in self.data_variable_setting['变量名称']:
             error=1
-            tk.messagebox.showwarning('错误', "SCORE 将用在以好打分中请更改变量名")
+            show_error("变量名 SCORE 会被系统保留用于打分结果，请更换变量名")
         elif 'SCORECARD_LR_p_1' in self.data_variable_setting['变量名称']:
             error = 1
-            tk.messagebox.showwarning('错误', "SCORECARD_LR_p_1 将用在以好打分中请更改变量名")
+            show_error("变量名 SCORECARD_LR_p_1 会被系统保留用于模型预测结果，请更换变量名")
         elif 'const' in self.data_variable_setting['变量名称']:
             error = 1
-            tk.messagebox.showwarning('错误', "const 将用在以后模型训练中请更改变量名")
+            show_error("变量名 const 会被系统保留用于模型常数项，请更换变量名")
         elif len(self.data_variable_setting[self.data_variable_setting['变量角色'] == 'TimeID']) == 1:
                 timeid=list(self.data_variable_setting[self.data_variable_setting['变量角色'] == 'TimeID']['变量名称'])[0]
                 if len(list(self.data_set[timeid].unique()))>30:
                     error=1
-                    tk.messagebox.showwarning('错误', "Timeid 数量太多请合并日期")
+                    show_error("TimeID 取值过多，请先合并日期或降粒度后再导入")
 
 
         if error==0 and len(self.data_variable_setting[self.data_variable_setting['变量角色'] == '目标']) == 0:
             if self.data_role == 'Training model':
-                tk.messagebox.showwarning('错误', "训练集中必须有且只有一个目标")
+                show_error("训练集中必须有且只有一个目标变量")
             else:
                 if len(self.data_variable_setting[self.data_variable_setting['变量角色'] == 'TimeID']) > 1:
-                    tk.messagebox.showwarning('错误', "最多只有一个TimeID")
+                    show_error("最多只能设置一个 TimeID 变量")
                 else:
                     self.save_d()
         elif error==0 and len(self.data_variable_setting[self.data_variable_setting['变量角色'] == '目标']) == 1:
             target = list(self.data_variable_setting[self.data_variable_setting['变量角色'] == '目标']['变量名称'])[0]
             if set(self.data_set[target].unique()) != set([0, 1]):
-                tk.messagebox.showwarning('错误', "目标角色只能有【0，1】两个值")
+                show_error("目标变量只能包含 0 和 1 两个取值")
             else:
                 if self.data_role == 'Training model':
                     if (len(self.data_variable_setting[self.data_variable_setting['变量角色'] == '自变量']) == 0) | (
                             len(self.data_variable_setting[self.data_variable_setting['是否使用'] == '使用']) == 0):
-                        tk.messagebox.showwarning('错误', "训练集中只要有一个是可以使用的自变量")
+                        show_error("训练集中至少需要一个可用的自变量")
                     else:
                         if len(self.data_variable_setting[self.data_variable_setting['变量角色'] == 'TimeID']) > 1:
-                            tk.messagebox.showwarning('错误', "最多只有一个TimeID")
+                            show_error("最多只能设置一个 TimeID 变量")
                         else:
                             self.save_d()
                 else:
                     if len(self.data_variable_setting[self.data_variable_setting['变量角色'] == 'TimeID']) > 1:
-                        tk.messagebox.showwarning('错误', "最多只有一个TimeID")
+                        show_error("最多只能设置一个 TimeID 变量")
                     else:
                         self.save_d()
         else:
-            tk.messagebox.showwarning('错误', "变量角色中必须有且只有一个目标")
+            show_error("变量角色中必须有且只有一个目标变量")
 
     def save_d(self):
 
@@ -414,7 +414,7 @@ class inputdata():
             self.data_variable_set_ui.update()
             # self.variable_seting_ui()
         except Exception as e:
-            tk.messagebox.showwarning('错误', "%s:%s" %(var ,e))
+            show_error(f"保存数据集失败，字段 {var} 的类型校验未通过", e)
 
     def refresh_df(self, mianfram, df):
 
@@ -440,7 +440,7 @@ class inputdata():
                 self.data_variable_setting.iloc[self.rowclicked]['备注'] == '只有一个值') & (
                 list(self.data_variable_setting.columns)[self.colclicked] == '变量角色'):
             self.comboxlist_modify_f_group.destroy()
-            tk.messagebox.showwarning('错误', "该变量只有一个值，不能设置为自变量")
+            show_error("该变量只有一个取值，不能设置为自变量")
         else:
             value = self.comboxlist_modify_f_group.get()
             self.data_variable_setting.iloc[self.rowclicked, self.colclicked] = value

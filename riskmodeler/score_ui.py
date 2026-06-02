@@ -17,7 +17,7 @@ import statsmodels.api as sm
 from .score_result_ui import score_result_ui
 
 import os
-from .ui import configure_form_grid, set_window_ready
+from .ui import configure_form_grid, set_window_ready, show_error, show_info
 
 
 
@@ -61,6 +61,34 @@ class scoreing():
         self.pre_data()
         self.pre_model()
 
+    def _refresh_form_state(self):
+        if not hasattr(self, 'page_status_var'):
+            return
+
+        has_name = bool(str(self.node_name).strip())
+        has_score_data = self.par_score_data.empty != True
+        has_model = len(self.model_ppp) > 0 and self.IGN_grouping_data.empty != True
+
+        if hasattr(self, 'button_setting_run'):
+            self.button_setting_run.configure(state='normal' if has_name and has_score_data and has_model else 'disabled')
+        if hasattr(self, 'button_refresh_run'):
+            self.button_refresh_run.configure(state='normal' if has_name and has_score_data and has_model else 'disabled')
+        if hasattr(self, 'button_output'):
+            self.button_output.configure(state='normal' if self.finsh == 'Y' else 'disabled')
+        if hasattr(self, 'check_result'):
+            self.check_result.configure(state='normal' if self.finsh == 'Y' else 'disabled')
+
+        if not has_name:
+            self.page_status_var.set('请先填写模块名称。')
+        elif not has_score_data:
+            self.page_status_var.set('请先选择打分数据集。')
+        elif not has_model:
+            self.page_status_var.set('请先选择评分卡模型。')
+        elif self.finsh == 'Y':
+            self.page_status_var.set('评分结果已生成，你可以查看结果、刷新结果或导出数据集。')
+        else:
+            self.page_status_var.set('参数已就绪，可以开始应用评分。')
+
     # 模块参数
     def pre_data(self):
         dd = list(self.project_info[self.project_info['模块类型'] == 'DATA']['保存地址'])
@@ -81,9 +109,8 @@ class scoreing():
             dd = list(self.project_info[(self.project_info['模块类型'] == 'SCR') &(self.project_info['状态'] == 'Good')]['模块名字'])
             self.SCR_list = dd
         except Exception as e:
-            tk.messagebox.showwarning('错误', e)
+            show_error('读取评分卡模块列表失败', e)
     def load_node(self,node_data,ac):
-        print('ccc')
         self.finsh = 'Y'
         self.node_setting=node_data[0]
         self.predict_score_data=node_data[1]
@@ -123,13 +150,10 @@ class scoreing():
         self.IGN_grouping_data = self.node_model_data[0]['IGN_grouping_data']
         if ac == 'setting':
             error_list=[]
-            print('a')
             for i in range(0,2):
                 if previous_node_name[i]!=None:
                     path_list = self.project_info[self.project_info['创建时间'] == previous_node_time[i]]['保存地址']
                     if len(path_list) == 0:
-                        print(previous_node_time)
-                        print({'name':previous_node_name[i],'time':previous_node_time[i]})
                         error_list=error_list+[{'name':previous_node_name[i],'time':previous_node_time[i]}]
             def continu(event):
                 for child in self.master.winfo_children():
@@ -158,7 +182,6 @@ class scoreing():
                 self.Start_UI()
                 self.adjustsetting()
         else:
-            print('b')
             self.reult_show_only(self.master)
 
     def import_data_node(self,event):
@@ -173,6 +196,7 @@ class scoreing():
         self.par_score_data = node_info[1]
         # self.previous_reject_check_change = node_info[0]['check_change']
         self.previous_reject_node_usedlist = node_info[0]['use_node']
+        self._refresh_form_state()
     def load_model_data(self, event):
         try:
             path = self.project_info[self.project_info['模块名字'] == self.comboxlist_SCR.get()]['保存地址'][0]
@@ -194,7 +218,9 @@ class scoreing():
             self.IGN_f_group_report=node_data[0]['report_para']['f_group_report']
             self.IGN_grouping_data=node_data[0]['IGN_grouping_data']
         except  Exception as e:
-            tk.messagebox.showwarning('错误', "%s数据集导入错误：%s" % (self.comboxlist_SCR.get(), e))
+            show_error("读取模型数据失败，请确认所选模型文件完整且未损坏", e)
+        finally:
+            self._refresh_form_state()
     def Start_UI(self):
         self.start_window_base = self.master
         set_window_ready(self.start_window_base, '数据集打分', 760, 420)
@@ -212,6 +238,7 @@ class scoreing():
             node_name = tk.StringVar(value=self.node_name)
             self.entry_node_name = ttk.Entry(self.node_intro, textvariable=node_name, width=24)
             self.entry_node_name.grid(column=1, row=0, sticky='ew')
+            self.entry_node_name.bind('<KeyRelease>', lambda _event: self._sync_node_name_from_entry())
         else:
             L88 = ttk.Label(self.node_intro, text="%s" % self.node_name, style='Hint.TLabel')
             L88.grid(column=1, row=0, sticky=(W))
@@ -263,14 +290,22 @@ class scoreing():
             self.button_output = ttk.Button(action_bar, text='导出数据集', style='Toolbar.TButton')
             self.button_output.grid(column=3, row=0, sticky=(W))
             self.button_output.bind("<Button-1>", self.out_dataset)
+        self.page_status_var = tk.StringVar(value='')
+        ttk.Label(self.start_window_base, textvariable=self.page_status_var, style='Status.TLabel').grid(column=0, row=5, sticky='w', padx=20, pady=(0, 18))
+        self._refresh_form_state()
+
+    def _sync_node_name_from_entry(self):
+        if hasattr(self, 'entry_node_name'):
+            self.node_name = self.entry_node_name.get().strip()
+            self._refresh_form_state()
     def out_dataset(self, event):
         try:
             word = '导出数据集：\n Score数据集：%s/%s_train.csv \n' % (self.project_path, self.node_name)
             self.predict_score_data.to_csv(self.project_path + '/' + '%s_score.csv' % self.node_name, index=False,
                                            encoding='utf-8')
-            tk.messagebox.showwarning('成功', word)
+            show_info(word)
         except  Exception as e:
-            tk.messagebox.showwarning('错误', e)
+            show_error('导出评分结果失败', e)
     def save_project(self, event):
         try:
             node_save_path = self.project_path + '/' + '%s.model' % self.node_name
@@ -295,7 +330,7 @@ class scoreing():
             except:
                 pass
         except Exception as e:
-            tk.messagebox.showwarning('错误', e)
+            show_error('保存打分模块失败', e)
     def Scoring(self, event):
         # 检查各个数据集变量情况
         try:
@@ -363,7 +398,7 @@ class scoreing():
                     self.adjustsetting()
                     self.model_start_flag = 'N'
         except Exception as e:
-            tk.messagebox.showwarning('错误', e)
+            show_error('评分计算失败，请检查模型、分组数据和打分数据是否匹配', e)
             self.model_start_flag = 'N'
     def scorecard_result_show_ui(self, event):
         try:

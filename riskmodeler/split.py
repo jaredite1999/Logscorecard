@@ -10,11 +10,12 @@ import matplotlib.pyplot as plt
 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib_venn import venn3
+from .ui import show_error
 class spliting():
     def __init__(self,mainframe,project_info):
         self.master=mainframe
         self.project_info=project_info
-        self.project_path=os.path.split(project_info[project_info['模块类型'] == 'project']['保存地址'][0])[0]
+        self.project_path=os.path.split(self._get_project_row('模块类型', 'project')['保存地址'])[0]
         self.method=''
         self.train_pct=0.7
         self.valid_pct=0.3
@@ -28,6 +29,43 @@ class spliting():
         self.exist_data=list(project_info['模块名字'])
         self.load='N'
         self.save='N'
+
+    def _get_project_row(self, column, value):
+        matched = self.project_info[self.project_info[column] == value]
+        if matched.empty:
+            raise ValueError(f'未找到 {column}={value} 对应的项目记录')
+        return matched.iloc[0]
+
+    def _get_project_save_path(self, column, value):
+        return self._get_project_row(column, value)['保存地址']
+
+    def _read_project_node(self, column, value):
+        path = self._get_project_save_path(column, value)
+        with open(path, 'rb') as fr:
+            return pickle.load(fr)
+
+    def _current_node_name(self):
+        if self.load == 'N' and hasattr(self, 'entry_node_name'):
+            return str(self.entry_node_name.get()).strip()
+        return str(self.node_name).strip()
+
+    def _refresh_form_state(self):
+        if not hasattr(self, 'page_status_var'):
+            return
+
+        has_name = bool(self._current_node_name())
+        has_train = self.par_train_data.empty != True
+
+        if hasattr(self, 'button_setting_save'):
+            self.button_setting_save.configure(state='normal' if has_name and has_train else 'disabled')
+
+        if not has_name:
+            self.page_status_var.set('请先填写模块名称。')
+        elif not has_train:
+            self.page_status_var.set('请先选择训练样本，再继续设置分区参数。')
+        else:
+            self.page_status_var.set('参数已就绪，可以开始样本分区。')
+
     def load_node(self,node_data,ac):
         #重新进去页面
         self.load='Y'
@@ -67,11 +105,8 @@ class spliting():
                 button_back.grid(column=2, row=1, sticky=(W), padx=10, pady=10)
                 button_back.bind("<Button-1>", back)
             else:
-                path=path_list[0]
                 try:
-                    fr = open(path,'rb')
-                    node_info = pickle.load(fr)
-                    fr.close()
+                    node_info = self._read_project_node('创建时间', self.previous_node_time)
                     # self.previous_check_change=node_info[0]['check_change']
                     self.previous_node_usedlist=node_info[0]['use_node']
                     self.previous_node_name=node_info[0]['node_name']
@@ -104,12 +139,12 @@ class spliting():
                 fr.close()
                 data_role=node_info[0]['data_role']
                 if data_role=='Training model':
-                    data_name=self.project_info[(self.project_info['保存地址'] == add) ]['模块名字'][0]
+                    data_name=self._get_project_row('保存地址', add)['模块名字']
                     train_data_list.append(data_name)
                 else :
                     pass
             except Exception as e:
-                tk.messagebox.showwarning('错误', "%s数据集导入错误：%s" % (add, e))
+                show_error(f"读取训练样本失败，请确认数据节点文件完整可用：{add}", e)
         self.start_window_base=self.master
         width = self.master.winfo_screenwidth()*0.15
         height = self.master.winfo_screenheight()*0.3
@@ -235,16 +270,25 @@ class spliting():
             self.button_setting_save = ttk.Button(self.start_window_base,text='更新结果')
             self.button_setting_save.grid( column=0, row=7,sticky=(W), padx=10, pady=10)
             self.button_setting_save.bind("<Button-1>",self.check_all_setting)
+        self.page_status_var = tk.StringVar()
+        self.page_status = Label(
+            self.start_window_base,
+            textvariable=self.page_status_var,
+            anchor='w',
+            justify=LEFT,
+            wraplength=420,
+        )
+        self.page_status.grid(column=0, row=8, columnspan=2, sticky=(W), padx=10, pady=(0, 10))
+        if self.load == 'N' and hasattr(self, 'entry_node_name'):
+            self.entry_node_name.bind('<KeyRelease>', lambda event: self._refresh_form_state(), add='+')
+        self._refresh_form_state()
+
     def load_data(self,event,datatype):
         #读取数据
         try:
-            print(datatype,self.comboxlist_train_data.get())
-            if (datatype=='train')&(len(self.comboxlist_train_data.get())>=1):
-                path=self.project_info[self.project_info['模块名字']==self.comboxlist_train_data.get()]['保存地址'][0]
-
-                fr = open(path,'rb')
-                node_info = pickle.load(fr)
-                fr.close()
+            selected_name = str(self.comboxlist_train_data.get()).strip()
+            if (datatype=='train')&(len(selected_name)>=1):
+                node_info = self._read_project_node('模块名字', selected_name)
 
                 self.par_traindatavariable_setting=node_info[0]['data_variable_setting']
                 # self.previous_check_change=node_info[0]['check_change']
@@ -255,11 +299,16 @@ class spliting():
                 self.par_train_data=node_info[1]
             elif len(self.comboxlist_train_data.get())<=1:
                 self.par_train_data = pd.DataFrame()
+                self._refresh_form_state()
             else:
                 pass
         except Exception as e :
             self.par_train_data = pd.DataFrame()
-            tk.messagebox.showwarning('错误', "%s数据集导入错误：%s" % (self.comboxlist_train_data.get(), e))
+            self._refresh_form_state()
+            show_error(
+                f"读取训练样本失败，请确认所选数据集“{self.comboxlist_train_data.get()}”仍存在且文件未损坏",
+                e,
+            )
     def split_function(self):
         #如果index有重复则重新reindex
         if self.par_train_data.index.is_unique==False:
@@ -516,11 +565,11 @@ class spliting():
         try:
             self.get_par(event)
             if (self.node_name in self.exist_data)&(self.load=='N'):
-                tk.messagebox.showwarning('错误',"该名称已经被占用，请更改")
+                show_error("该名称已经被占用，请更改后再保存")
             else:
                 e=0
                 if self.par_train_data.empty==True:
-                    tk.messagebox.showwarning('错误',"错误：训练样本为空")
+                    show_error("请先选择可用的训练样本")
                 else:
                     total=['seed','train_pct', 'valid_pct','bad_pct','bad_rate']
 
@@ -542,7 +591,7 @@ class spliting():
                     if e==0:
                         self.split_function()
         except Exception as e:
-            tk.messagebox.showwarning('错误',e)
+            show_error("分区参数校验失败", e)
     def get_par(self,event):
         #更新得到的设置
         self.load_data(event,'train')
@@ -557,6 +606,7 @@ class spliting():
         self.method=self.comboxlist_method.get()
         if self.load=='N':
             self.node_name=self.entry_node_name.get()
+        self._refresh_form_state()
     def int_num_check(self,event,entry_p,flag):
        # 检查数字是否正确
         flag_er=0

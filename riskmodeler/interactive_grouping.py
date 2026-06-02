@@ -10,7 +10,7 @@ from .IGN_UI import UserInterfacea
 import datetime
 from tkinter import filedialog
 import os
-from .ui import bind_scrollable_mousewheel, configure_form_grid, create_scrollable_form, set_window_ready
+from .ui import bind_scrollable_mousewheel, configure_form_grid, create_scrollable_form, set_window_ready, show_error
 binning = binning()
 
 class IGN():
@@ -113,6 +113,31 @@ class IGN():
         sample_count = len(self.par_train_data)
         pct_based_value = int(sample_count * self.par_min_pct_group)
         return max(1, min(self.par_min_num_group, pct_based_value))
+
+    def _refresh_form_state(self):
+        if not hasattr(self, 'page_status_var'):
+            return
+
+        has_name = bool(str(self.node_name).strip())
+        has_train = self.par_train_data.empty != True
+
+        if hasattr(self, 'button_data_variablesetting'):
+            self.button_data_variablesetting.configure(state='normal' if has_train else 'disabled')
+        if hasattr(self, 'button_data_grouping_data_import'):
+            self.button_data_grouping_data_import.configure(state='normal')
+        if hasattr(self, 'button_setting_run'):
+            self.button_setting_run.configure(state='normal' if has_name and has_train else 'disabled')
+        if hasattr(self, 'button_refresh_run'):
+            self.button_refresh_run.configure(state='normal' if has_name and has_train else 'disabled')
+
+        if not has_name:
+            self.page_status_var.set('请先填写模块名称。')
+        elif not has_train:
+            self.page_status_var.set('请先选择训练样本，随后才能进行变量设置和分组。')
+        elif self.finsh == 'Y':
+            self.page_status_var.set('分组结果已生成，你可以查看结果、刷新结果或继续调整参数。')
+        else:
+            self.page_status_var.set('参数已就绪，可以开始应用分组。')
 
     def load_data(self, event, datatype):
         try:
@@ -232,6 +257,8 @@ class IGN():
         except  Exception as e:
             detail = e if isinstance(e, str) else repr(e) if str(e).strip() == '' else str(e)
             tk.messagebox.showwarning('错误', "%s数据集导入错误：%s" % (datatype, detail))
+        finally:
+            self._refresh_form_state()
     def pre_data(self):
         dd = list((self.project_info[(self.project_info['模块类型'] == 'DATA') |
                                      (self.project_info['模块类型'] == 'SPLIT') |
@@ -282,6 +309,7 @@ class IGN():
             node_name=tk.StringVar(value=self.node_name)
             self.entry_node_name= ttk.Entry(self.node_intro, textvariable=node_name, width=24)
             self.entry_node_name.grid(column=1, row=0, sticky='ew')
+            self.entry_node_name.bind('<KeyRelease>', lambda _event: self._sync_node_name_from_entry())
         else:
             L88 = ttk.Label(self.node_intro, text="%s" %self.node_name, style='Hint.TLabel')
             L88.grid(column=1, row=0, sticky=(W))
@@ -504,7 +532,15 @@ class IGN():
             self.button_refresh_run = ttk.Button(action_bar, text='刷新结果', style='Accent.TButton')
             self.button_refresh_run.grid(column=2, row=0, sticky=(W))
             self.button_refresh_run.bind("<Button-1>", self.interactive_grouping)
+        self.page_status_var = tk.StringVar(value='')
+        ttk.Label(page, textvariable=self.page_status_var, style='Status.TLabel').grid(column=0, row=10, sticky='w', padx=20, pady=(0, 18))
         bind_scrollable_mousewheel(page)
+        self._refresh_form_state()
+
+    def _sync_node_name_from_entry(self):
+        if hasattr(self, 'entry_node_name'):
+            self.node_name = self.entry_node_name.get().strip()
+            self._refresh_form_state()
     # 检查所有变量参数是否正确
     def loading_grouping_data(self,event):
         # name = tk.StringVar(value='IGN')
@@ -550,7 +586,7 @@ class IGN():
 
             self.adjustsetting()
         except Exception as e:
-            tk.messagebox.showwarning('错误', e)
+            show_error('导入分组数据失败，请检查所选 IGN 文件是否完整可用', e)
     def load_node(self,node_data,ac):
         self.import_node=node_data
         self.load='Y'
@@ -759,10 +795,10 @@ class IGN():
         mm=0
         if (self.node_name in self.exist_data) & (self.load == 'N'):
             mm = mm + 1
-            tk.messagebox.showwarning('错误', "该名称已经被占用，请更改")
+            show_error("模块名称已存在，请更换一个新的名称")
         if self.par_train_data.empty == True:
             mm= mm + 1
-            tk.messagebox.showwarning('错误', "错误：训练样本为空")
+            show_error("请先选择训练样本，再执行分组")
         else:
             total = ['iv_reject_min',
                      'entry_min_num_sample', 'entry_f_bin_num',
@@ -840,34 +876,34 @@ class IGN():
         try:
             if float(inputnum) < 0:
                 a = a + 1
-                tk.messagebox.showwarning('错误', '%s:输入值不能小于0' % tip)
+                show_error(f'{tip} 输入值不能小于 0')
             else:
                 if flag == 'int':
                     try:
                         int(inputnum)
                     except Exception as e:
                         a = a + 1
-                        tk.messagebox.showwarning('错误', '%s:%s' % (tip, e))
+                        show_error(f'{tip} 请输入整数', e)
                 elif flag == 'pct':
                     try:
                         num = float(inputnum)
                         if num > 1:
                             a = a + 1
-                            tk.messagebox.showwarning('错误', '%s:输入值不能大于1' % tip)
+                            show_error(f'{tip} 输入值不能大于 1')
                         else:
                             pass
                     except Exception as e:
                         a = a + 1
-                        tk.messagebox.showwarning('错误', '%s:%s' % (tip, e))
+                        show_error(f'{tip} 请输入 0 到 1 之间的小数', e)
                 else:
                     try:
                         num = float(inputnum)
                     except Exception as e:
                         a = a + 1
-                        tk.messagebox.showwarning('错误', '%s:%s' % (tip, e))
+                        show_error(f'{tip} 请输入数值', e)
         except Exception as e:
             a = a + 1
-            tk.messagebox.showwarning('错误', '%s:%s' % (tip, e))
+            show_error(f'{tip} 校验失败', e)
         return a
     # 导入特殊值数据集
     def specialcode(self, event):
@@ -919,9 +955,9 @@ class IGN():
         try:
             data = pd.read_csv(r'%s' % path, encoding='%s' % coding, low_memory=False)
             if data.empty == True:
-                tk.messagebox.showwarning('错误', "错误：数据集为空")
+                show_error("特殊值数据集为空，请重新选择文件")
             elif( ('value' in data.columns) == False)|(('variable' in data.columns) == False):
-                tk.messagebox.showwarning('错误', "错误：数据集格式错误请看样例")
+                show_error("特殊值数据集格式不正确，请参考样例文件，至少包含 variable 和 value 两列")
             else:
                 self.tt1 = Toplevel(self.special_code_ui)
                 set_window_ready(self.tt1, name, 900, 620, resizable=True)
@@ -940,7 +976,7 @@ class IGN():
                 table = ptm = Table(f, dataframe=df, height=screen_height, width=screen_width)
                 ptm.show()
         except Exception as e:
-            tk.messagebox.showwarning('错误', e)
+            show_error("读取特殊值数据集失败，请检查文件路径、编码和 CSV 格式", e)
     def specialcode_example(self, event):
         dd = pd.DataFrame([{'variable': 'VAR1', 'value': '999'}, {'variable': 'VAR1', 'value': '-1'},
                            {'variable': 'VAR2', 'value': '-1'}])

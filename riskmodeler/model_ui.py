@@ -23,7 +23,7 @@ import os
 import numpy as np
 import random
 from .var_clus import VarClus
-from .ui import configure_form_grid, set_window_ready
+from .ui import configure_form_grid, set_window_ready, show_error, show_info
 
 
 class model():
@@ -107,6 +107,33 @@ class model():
         self.scorecard_df = pd.DataFrame()
         self.lasso_df = pd.DataFrame()
         self.pre_data()
+
+    def _refresh_form_state(self):
+        if not hasattr(self, 'page_status_var'):
+            return
+
+        has_name = bool(str(self.node_name).strip())
+        has_group = self.IGN_grouped_train_data.empty != True
+
+        if hasattr(self, 'button_data_variablesetting'):
+            self.button_data_variablesetting.configure(state='normal' if has_group else 'disabled')
+        if hasattr(self, 'button_setting_run'):
+            self.button_setting_run.configure(state='normal' if has_name and has_group else 'disabled')
+        if hasattr(self, 'button_refresh_run'):
+            self.button_refresh_run.configure(state='normal' if has_name and has_group else 'disabled')
+        if hasattr(self, 'button_modify_manually'):
+            self.button_modify_manually.configure(state='normal' if self.finsh == 'Y' else 'disabled')
+        if hasattr(self, 'button_output'):
+            self.button_output.configure(state='normal' if self.finsh == 'Y' else 'disabled')
+
+        if not has_name:
+            self.page_status_var.set('请先填写模块名称。')
+        elif not has_group:
+            self.page_status_var.set('请先选择分组数据，变量设置和模型训练才会解锁。')
+        elif self.finsh == 'Y':
+            self.page_status_var.set('模型结果已生成，你可以查看结果、导出数据或手动调整变量。')
+        else:
+            self.page_status_var.set('参数已就绪，可以开始训练模型。')
 
     # 模块参数
     def thread_it(self, func, *args):
@@ -249,7 +276,7 @@ class model():
                     self.IGN_grouped_valid_data = self.predict_vaild_data
                     self.IGN_grouped_reject_data = self.predict_reject_data
                     self.IGN_grouped_oot_data = self.predict_oot_data
-                    tk.messagebox.showwarning('错误', "%s数据集导入错误：%s" % (self.IGN_node_name, e))
+                    show_error("读取分组模块失败，请确认所选 IGN 模块文件完整可用", e)
             if ac == 'setting' and len(error_list) == 0:
                 self.Start_UI()
                 self.adjustsetting()
@@ -306,7 +333,9 @@ class model():
                     self.IGN_IGNvariable_setting['是否使用'] = self.IGN_IGNvariable_setting.apply(
                         lambda x: '不使用' if x['变量名称'] in self.IGN_not_use else x['是否使用'], axis=1)
         except  Exception as e:
-            tk.messagebox.showwarning('错误', "%s数据集导入错误：%s" % (datatype, e))
+            show_error(f"读取{datatype}数据失败", e)
+        finally:
+            self._refresh_form_state()
 
     def pre_data(self):
 
@@ -315,7 +344,7 @@ class model():
                                         (self.project_info['状态'] == 'Good')]['模块名字'])
             self.IGN_list = dd
         except Exception as e:
-            tk.messagebox.showwarning('错误', e)
+            show_error('读取交互式分组模块列表失败', e)
 
     def Start_UI(self):
         self.start_window_base = self.master
@@ -335,6 +364,7 @@ class model():
             node_name = tk.StringVar(value=self.node_name)
             self.entry_node_name = ttk.Entry(self.node_intro, textvariable=node_name, width=24)
             self.entry_node_name.grid(column=1, row=0, sticky='ew')
+            self.entry_node_name.bind('<KeyRelease>', lambda _event: self._sync_node_name_from_entry())
         else:
             L88 = ttk.Label(self.node_intro, text="%s" % self.node_name, style='Hint.TLabel')
             L88.grid(column=1, row=0, sticky=(W))
@@ -569,6 +599,14 @@ class model():
             self.button_output = ttk.Button(action_bar, text='导出数据集', style='Toolbar.TButton')
             self.button_output.grid(column=4, row=0, sticky=(W))
             self.button_output.bind("<Button-1>", self.out_dataset)
+        self.page_status_var = tk.StringVar(value='')
+        ttk.Label(self.start_window_base, textvariable=self.page_status_var, style='Status.TLabel').grid(column=0, row=7, sticky='w', padx=20, pady=(0, 18))
+        self._refresh_form_state()
+
+    def _sync_node_name_from_entry(self):
+        if hasattr(self, 'entry_node_name'):
+            self.node_name = self.entry_node_name.get().strip()
+            self._refresh_form_state()
 
     def out_dataset(self, event):
         try:
@@ -587,9 +625,9 @@ class model():
                 word = word + '验证集：%s/%s_oot.csv \n' % (self.project_path, self.node_name)
                 self.predict_oot_data.to_csv(self.project_path + '/' + '%s_oot.csv' % self.node_name, index=False,
                                              encoding='utf-8')
-            tk.messagebox.showwarning('成功', word)
+            show_info(word)
         except  Exception as e:
-            tk.messagebox.showwarning('错误', e)
+            show_error('导出模型结果数据失败', e)
 
     def modify_model(self, event):
         try:
@@ -723,7 +761,7 @@ class model():
             except:
                 pass
         except Exception as e:
-            tk.messagebox.showwarning('错误', e)
+            show_error('保存模型模块失败', e)
 
     def get_par(self):
         self.par_use_freezing_flag = self.comboxlist_freezing_code.get()

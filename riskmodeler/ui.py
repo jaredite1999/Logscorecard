@@ -115,6 +115,25 @@ def configure_matplotlib_fonts() -> str:
     return selected_font
 
 
+def format_exception_message(error: Exception | str) -> str:
+    if isinstance(error, str):
+        return error
+    message = str(error).strip()
+    if message:
+        return message
+    return repr(error)
+
+
+def show_error(message: str, error: Exception | str | None = None) -> None:
+    detail = format_exception_message(error) if error is not None else None
+    text = message if detail in (None, "", message) else f"{message}：{detail}"
+    tk.messagebox.showwarning("错误", text)
+
+
+def show_info(message: str, title: str = "成功") -> None:
+    tk.messagebox.showinfo(title, message)
+
+
 def create_scrollable_treeview(
     parent: tk.Misc,
     columns: tuple[str, ...],

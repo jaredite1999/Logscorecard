@@ -10,6 +10,7 @@ from .IGN_UI import UserInterfacea
 import datetime
 from tkinter import filedialog
 import os
+from .ui import set_window_ready, show_error
 binning = binning()
 import plotly.graph_objects as go
 import plotly.io as pio
@@ -20,7 +21,7 @@ class PLC():
         # project参数
         self.save = 'N'
         self.project_info = project_info
-        self.project_path = os.path.split(project_info[project_info['模块类型'] == 'project']['保存地址'][0])[0]
+        self.project_path = os.path.split(self._get_project_row('模块类型', 'project')['保存地址'])[0]
         self.node_name='policy'
         self.exist_data = list(project_info['模块名字'])
         self.load='N'
@@ -99,13 +100,49 @@ class PLC():
 
         self.previous_oot_check_change =[]
         self.previous_oot_node_usedlist =[]
+    def _get_project_row(self, column, value):
+        matched = self.project_info[self.project_info[column] == value]
+        if matched.empty:
+            raise ValueError(f'未找到 {column}={value} 对应的项目记录')
+        return matched.iloc[0]
+
+    def _get_project_save_path(self, column, value):
+        return self._get_project_row(column, value)['保存地址']
+
+    def _read_project_node(self, column, value):
+        path = self._get_project_save_path(column, value)
+        with open(path, 'rb') as fr:
+            return pickle.load(fr)
+
+    def _current_node_name(self):
+        if (self.load == 'N') and (self.finsh == 'N') and hasattr(self, 'entry_node_name'):
+            return str(self.entry_node_name.get()).strip()
+        return str(self.node_name).strip()
+
+    def _refresh_form_state(self):
+        if not hasattr(self, 'page_status_var'):
+            return
+
+        has_name = bool(self._current_node_name())
+        has_train = self.par_train_data.empty != True
+
+        if hasattr(self, 'button_setting_run'):
+            self.button_setting_run.configure(state='normal' if has_name and has_train else 'disabled')
+        if hasattr(self, 'button_refresh_run'):
+            self.button_refresh_run.configure(state='normal' if has_name and has_train else 'disabled')
+
+        if not has_name:
+            self.page_status_var.set('请先填写模块名称。')
+        elif not has_train:
+            self.page_status_var.set('请先选择训练样本，再继续配置规则集参数。')
+        else:
+            self.page_status_var.set('参数已就绪，可以应用规则集。')
+
     def load_data(self, event, datatype):
         try:
             if datatype == 'train':
-                path = self.project_info[self.project_info['模块名字'] == self.comboxlist_train_data.get()]['保存地址'][0]
-                fr = open(path, 'rb')
-                node_info = pickle.load(fr)
-                fr.close()
+                selected_name = str(self.comboxlist_train_data.get()).strip()
+                node_info = self._read_project_node('模块名字', selected_name)
                 self.par_traindatavariable_setting = node_info[0]['data_variable_setting']
                 self.par_train_dataname = node_info[0]['node_name']
                 self.par_train_dataname_time=node_info[0]['time']
@@ -141,10 +178,7 @@ class PLC():
                     self.IGNvariable_setting = pd.merge(self.IGNvariable_setting, oot,
                                                         how='outer', left_on='变量名称', right_on='变量名称_时间外样本')
             elif (datatype == 'reject')&(str(self.comboxlist_reject_data.get())!='NO'):
-                path = self.project_info[self.project_info['模块名字'] == self.comboxlist_reject_data.get()]['保存地址'][0]
-                fr = open(path, 'rb')
-                node_info = pickle.load(fr)
-                fr.close()
+                node_info = self._read_project_node('模块名字', str(self.comboxlist_reject_data.get()).strip())
                 self.par_rejectdatavariable_setting = node_info[0]['data_variable_setting']
                 self.par_reject_dataname = node_info[0]['node_name']
                 self.par_reject_dataname_time=node_info[0]['time']
@@ -166,10 +200,7 @@ class PLC():
                     self.IGNvariable_setting = pd.merge(self.IGNvariable_setting, reject,
                                                         how='outer', left_on='变量名称', right_on='变量名称_拒绝样本')
             elif (datatype == 'oot')&(str(self.comboxlist_oot_data.get())!='NO'):
-                path = self.project_info[self.project_info['模块名字'] == self.comboxlist_oot_data.get()]['保存地址'][0]
-                fr = open(path, 'rb')
-                node_info = pickle.load(fr)
-                fr.close()
+                node_info = self._read_project_node('模块名字', str(self.comboxlist_oot_data.get()).strip())
                 self.par_ootdatavariable_setting = node_info[0]['data_variable_setting']
                 self.par_oot_dataname = node_info[0]['node_name']
                 self.par_oot_dataname_time=node_info[0]['time']
@@ -221,7 +252,8 @@ class PLC():
                 else:
                     pass
         except  Exception as e:
-            tk.messagebox.showwarning('错误', "%s数据集导入错误：%s" % (datatype, e))
+            show_error(f"读取{datatype}数据集失败，请确认所选节点仍存在且文件未损坏", e)
+        self._refresh_form_state()
     def pre_data(self):
         dd = list((self.project_info[(self.project_info['模块类型'] == 'DATA') |
                                      (self.project_info['模块类型'] == 'SPLIT') |
@@ -232,9 +264,8 @@ class PLC():
 
         for add in dd:
             try:
-                fr = open(add, 'rb')
-                node_info = pickle.load(fr)
-                fr.close()
+                with open(add, 'rb') as fr:
+                    node_info = pickle.load(fr)
                 data_role = node_info[0]['data_role']
                 node_name = node_info[0]['node_name']
                 if data_role == 'Training model':
@@ -242,17 +273,12 @@ class PLC():
                 else:
                     pass
             except Exception as e:
-                tk.messagebox.showwarning('错误', "%s数据集导入错误：%s" % (add, e))
+                show_error(f"读取数据节点失败，请确认文件完整可用：{add}", e)
     def Start_UI(self):
         self.start_window_base = self.master
-        width = max(self.master.winfo_screenwidth() * 0.18,400)
-        height = self.master.winfo_screenheight() * 0.8
-        screenwidth = self.master.winfo_screenwidth()
-        screenheight = self.master.winfo_screenheight()
-        self.start_window_base.geometry(
-            '%dx%d+%d+%d' % (width, height, (screenwidth - width) / 2, (screenheight - height) / 2))
-        self.start_window_base.title('规则集参数设置')
-        print(height,width)
+        width = int(max(self.master.winfo_screenwidth() * 0.18, 400))
+        height = int(self.master.winfo_screenheight() * 0.8)
+        set_window_ready(self.start_window_base, '规则集参数设置', width, height, resizable=False)
     def adjustsetting(self):
         # 导入数据
         self.node_intro=LabelFrame(self.start_window_base, text='模块名称:')
@@ -395,6 +421,18 @@ class PLC():
             self.button_refresh_run = ttk.Button(self.start_window_base, text='刷新结果')
             self.button_refresh_run.grid(column=2, row=7, sticky=(W))
             self.button_refresh_run.bind("<Button-1>", self.interactive_grouping)
+        self.page_status_var = tk.StringVar()
+        self.page_status = Label(
+            self.start_window_base,
+            textvariable=self.page_status_var,
+            anchor='w',
+            justify=LEFT,
+            wraplength=420,
+        )
+        self.page_status.grid(column=0, row=8, columnspan=3, sticky=(W), padx=10, pady=(0, 10))
+        if (self.load == 'N') and (self.finsh == 'N') and hasattr(self, 'entry_node_name'):
+            self.entry_node_name.bind('<KeyRelease>', lambda event: self._refresh_form_state(), add='+')
+        self._refresh_form_state()
     # 检查所有变量参数是否正确
     def loading_grouping_data(self,event):
         # name = tk.StringVar(value='IGN')
@@ -670,10 +708,10 @@ class PLC():
 
         if (self.node_name in self.exist_data) & (self.load == 'N'):
             mm = mm + 1
-            tk.messagebox.showwarning('错误', "该名称已经被占用，请更改")
+            show_error("该名称已经被占用，请更改后再保存")
         if self.par_train_data.empty == True:
             mm= mm + 1
-            tk.messagebox.showwarning('错误', "错误：训练样本为空")
+            show_error("请先选择可用的训练样本")
         else:
             total = ['entry_min_badrate', 'entry_min_badnum', 'entry_min_lift',
                      'entry_min_num_char', 'entry_min_pct_char', 'entry_s_bin_num']
@@ -716,6 +754,7 @@ class PLC():
         self.par_import_groupdataname = self.par_import_groupdataname
         if (self.finsh=='N')&(self.load=='N'):
             self.node_name=self.entry_node_name.get()
+        self._refresh_form_state()
     def int_num_check(self, event, entry_p, flag):
         a=0
 
